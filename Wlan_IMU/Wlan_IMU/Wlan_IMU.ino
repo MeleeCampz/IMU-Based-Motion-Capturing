@@ -11,7 +11,6 @@
 char ssid[] = "Seppenpoint-WG";
 char pass[] = "F3F8671F29";
 
-IPAddress ip(10, 0, 0, 66); //fixed ip adress
 IPAddress gateway(10, 0, 0, 138); //Gatway
 IPAddress subnet(255, 255, 255, 0); //Subnet mask
 
@@ -23,6 +22,8 @@ void handleRoot() {
 }
 
 void setup() {
+	pinMode(LED_BUILTIN, OUTPUT);
+	
 	Serial.begin(115200);
 	delay(10);
 
@@ -32,7 +33,6 @@ void setup() {
 	Serial.println(ssid);
 
 	WiFi.begin(ssid, pass);
-
 	while (WiFi.status() != WL_CONNECTED)
 	{
 		delay(500);
@@ -44,13 +44,44 @@ void setup() {
 	Serial.print("IP-Adress: ");
 	Serial.println(WiFi.localIP());
 
+	//WiFi.disconnect(); //Without this line, controller would autoconnect to last network
+	bool result = WiFi.softAP("AccesPopint");
+
+	if (result == true)
+	{
+		Serial.println("Ready");
+	}
+	else
+	{
+		Serial.println("Failed!");
+	}
+	
+	IPAddress myIP = WiFi.softAPIP();
+	Serial.print("AP IP address: ");
+	Serial.println(myIP);
+
+
 	server.on("/", handleRoot);
 	server.begin();
 
 	Serial.println("HTTP Server started!");
 }
 
+bool toggle = false;
+
 void loop() {
 	server.handleClient();
-	delay(500);
+	
+	toggle = !toggle;
+	if (toggle)
+	{
+		digitalWrite(LED_BUILTIN, HIGH);
+	}
+	else
+	{
+		digitalWrite(LED_BUILTIN, LOW);
+	}
+
+	Serial.printf("Stations connected = %d\n", WiFi.softAPgetStationNum());
+	delay(1000);
 }
