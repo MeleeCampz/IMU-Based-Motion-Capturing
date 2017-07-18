@@ -17,5 +17,9 @@
   <ItemGroup>
     <None Include="Wlan_IMU.ino" />
   </ItemGroup>
- 
+  <ItemGroup>
+    <ClInclude Include="__vm\.Wlan_IMU.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
