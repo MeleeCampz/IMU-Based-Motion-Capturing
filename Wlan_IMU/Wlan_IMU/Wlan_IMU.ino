@@ -4,6 +4,7 @@
  Author:	Tobias
 */
 
+#include <Wire.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
@@ -41,7 +42,7 @@ void handleLogin()
 		server.send(400, "text/plain", "400: Invalid Request");         // The request is invalid, so send HTTP status 400
 		return;
 	}
-	
+
 
 	handleRoot();
 
@@ -58,9 +59,9 @@ void handleNotFound() {
 bool LEDTOOGLE = false;
 
 void tryConnectToNetwork(const char* SSID, const char* PW)
-{	
+{
 	delay(100);
-	
+
 	Serial.println();
 	Serial.println();
 	Serial.print("Connecting to network: ");
@@ -91,7 +92,7 @@ void OnStationModeConnected(const WiFiEventStationModeConnected& event)
 {
 	Serial.print("WiFi connected: ");
 	Serial.println(event.ssid);
-	
+
 }
 
 void OnStationGoIP(const WiFiEventStationModeGotIP& event)
@@ -114,26 +115,36 @@ void trySetupDNS()
 	}
 }
 
+
+const bool DEBUG_LED = false;
+const int m_SDA = D7;
+const int m_SCL = D6;
+
 void setup() {
+	
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(115200);
 
-	WiFi.mode(WIFI_AP_STA);
-
-	eConnected = WiFi.onStationModeConnected(OnStationModeConnected);
-	eGotIP = WiFi.onStationModeGotIP(OnStationGoIP);
-	
-	delay(10);
-
-	if (WiFi.isConnected())
+	if(DEBUG_LED)
 	{
-		OnStationModeConnected(WiFiEventStationModeConnected{});
-		OnStationGoIP(WiFiEventStationModeGotIP{});
+		pinMode(m_SDA, OUTPUT);
+		pinMode(m_SCL, OUTPUT);
+	}	
+	else
+	{
+		Wire.begin(m_SDA, m_SCL);
+		//Wire.setClock(100000);
 	}
 
-	//WiFi.disconnect(); //Without this line, controller would autoconnect to last network
-	bool result = WiFi.softAP("AccesPopint");
+
+
+	WiFi.mode(WIFI_AP_STA);
+	eConnected = WiFi.onStationModeConnected(OnStationModeConnected);
+	eGotIP = WiFi.onStationModeGotIP(OnStationGoIP);
+
+
+	bool result = WiFi.softAP("ESP8266-AP");
 
 	if (result == true)
 	{
@@ -148,7 +159,7 @@ void setup() {
 	Serial.print("AP IP address: ");
 	Serial.println(myIP);
 
-	
+
 
 	server.on("/", HTTP_GET, handleRoot);
 	server.on("/login", HTTP_POST, handleLogin);
@@ -156,12 +167,40 @@ void setup() {
 	server.begin();
 
 	Serial.println("HTTP Server started!");
-
 }
 
+
+bool toggle = false;
 
 void loop() {
 	server.handleClient();
 
-	delay(10);
+	if (DEBUG_LED)
+	{
+		toggle = !toggle;
+		digitalWrite(m_SDA, toggle ? HIGH : LOW);
+		digitalWrite(m_SCL, toggle ? HIGH : LOW);
+	}	
+	else
+	{
+		Serial.println("Testing IC2 connection....");
+		Wire.beginTransmission(0x69);
+		Wire.write(0x6B);  // PWR_MGMT_1 register 
+		Wire.write(0);     // set to zero (wakes up the MPU-6050) 
+		byte error = Wire.endTransmission();
+		if (error == 0)
+		{
+			Serial.println("I2C device found !");
+		}
+		else if (error == 4)
+		{
+			Serial.print("Unknown I2C device error!");
+		}
+		else
+		{
+			Serial.println("Failed!");
+		}
+	}
+
+	delay(1000);
 }
