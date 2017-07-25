@@ -8,18 +8,16 @@
 
 
 ///////////////////////////////////////////////////////////////////
-//Determines how often we sample and send data
+//Determines how often we sample data
 ///////////////////////////////////////////////////////////////////
-#define samplingRateInMillis 1000
-#define batchSize 32 //Number or events to send to server in single batch.  This is meant to optimize for amount of memory on heap because we may not be able to load entire contents of eeprom into memory to send to server.
-#define MAX_BACKOFF kbits_256 * 1024 / sizeof(IMUResult) / batchSize  //we backoff attempting to conect to MQTT Server because it a synchronous call which takes a few seconds.
-uint32_t backOffFactor = 1;
+#define samplingRateInMillis 33
 
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
 ///////////////////////////////////////////////////////////////////
-#define declination 15.93  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
+#define declination 13.37  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
 #define calibrateMagnetometer false  //Setting requires requires you to move device in figure 8 pattern when prompted over serial port.  Typically, you do this once, then manually provide the calibration values moving forward.
+
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, orientResult;
 
@@ -131,8 +129,6 @@ const int m_SDA = D7;
 const int m_SCL = D6;
 const int m_intPin = D2;
 
-#define MAGNETOMETER_CALIBRATION 0
-
 
 
 void setup() {
@@ -176,12 +172,15 @@ void setup() {
 	}
 	else
 	{
-		mpu.setMagCalibrationManually(-166, 16, 663);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.
-															   //Note that values will change as seasons change and as you move around globe.  These values are for zip code 98103 in the fall.
+		mpu.setMagCalibrationManually(162, 130, 46);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
 	}
 
 
 	Serial.println("Accelerometer ready");
+
+	mpu.selfTest();
+
+	WiFi.disconnect();
 
 
 	//Init WLAN
@@ -216,6 +215,10 @@ void setup() {
 }
 
 
+uint32_t lastSample = 0;
+uint32_t lastDataCount = 0;
+
+#define TEST_SAMPLRATE  false
 
 void loop() {
 	server.handleClient();
@@ -228,11 +231,34 @@ void loop() {
 		mpu.readGyroData(&gyroResult);
 		mpu.readMagData(&magResult);
 
-		// Must be called before updating quaternions!
-		mpu.updateTime();
-		MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
-		readOrientation(&orientResult, declination);
+		if (TEST_SAMPLRATE)
+			lastDataCount++;
+	}
+	else
+	{
+		Serial.println("to slow?");
+	}
 
+	// Must be called before updating quaternions!
+	mpu.updateTime();
+	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	readOrientation(&orientResult, declination);
+
+	if (millis() - lastSample > samplingRateInMillis)
+	{
+		//accResult.printResult();
+		//gyroResult.printResult();
+		//magResult.printResult();
 		orientResult.printResult();
+
+		if (TEST_SAMPLRATE)
+			Serial.println((millis() - lastSample) / lastDataCount);
+		lastSample = millis();
+
+		if (TEST_SAMPLRATE)
+			lastDataCount = 0;
+		
+		mpu.sumCount = 0;
+		mpu.sum = 0;
 	}
 }
