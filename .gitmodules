@@ -1,0 +1,3 @@
+[submodule "Wlan_IMU/Unreal/FPS_IK/Plugins"]
+	path = Wlan_IMU/Unreal/FPS_IK/Plugins
+	url = https://github.com/RVillani/UE4Duino.git
