@@ -5,6 +5,14 @@
 #include "MPU9250.h"
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
+#include "Adafruit_SSD1306.h"
+
+
+//Pin Defines
+//Using default pin D2 for SDA
+//Using default pin D1 for SDA
+const int m_intPin = D3;
+#define OLED_RESET LED_BUILTIN
 
 
 ///////////////////////////////////////////////////////////////////
@@ -26,6 +34,9 @@ IMUResult magResult, accResult, gyroResult, orientResult;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiEventHandler eConnected, eGotIP;
+
+//DisplayTest
+Adafruit_SSD1306 display(OLED_RESET);
 
 bool LEDTOGGLE = false;
 void tryConnectToNetwork(const char* SSID, const char* PW)
@@ -125,43 +136,31 @@ void OnStationGoIP(const WiFiEventStationModeGotIP& event)
 	trySetupDNS();
 }
 
-const int m_SDA = D7;
-const int m_SCL = D6;
-const int m_intPin = D2;
 
 
-
-void setup() {
-
+void setup() {	
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(115200);
 
+	//LCD
+	display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+	display.clearDisplay();
+	display.setTextSize(1);
+	display.setTextColor(WHITE);
 
 	//Init MPU
-	mpu.begin(m_SDA, m_SCL, m_intPin);
+	mpu.begin(SDA, SCL, m_intPin);
 	//This tests communication between the accelerometer and the ESP8266.  Dont continue until we get a successful reading.
-	//It is expected that the WHO_AM_I_MPU9250 register should return a value of 0x71.
-	//If it fails to do so try the following:
-	//1) Turn power off to the ESP8266 and restart.  Try this a few times first.  It seems to resolve the issue most of the time.  If this fails, then proceed to the followingn steps.
-	//2) Go to src/MPU9250.h and change the value of ADO from 0 to 1
-	//3) Ensure your i2c lines are 3.3V and that you haven't mixed up SDA and SCL
-	//4) Run an i2c scanner program (google it) and see what i2c address the MPU9250 is on.  Verify your value of ADO in src/MPU9250.h is correct.
-	//5) Some models apparently expect a hex value of 0x73 and not 0x71.  If that is the case, either remove the below check or change the value fro 0x71 to 0x73.
-	byte c;
-	do
+	byte c = 0x00;
+	while(c != 0x73)
 	{
 		c = mpu.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
 		if (c != 0x73)
 		{
-			Serial.println("Failed to communicate with MPU9250");
-			Serial.print("WHO_AM_I returned ");
-			Serial.println(c, HEX);
 			delay(500);
 		}
-	} while (c != 0x73);
-
-	Serial.println("Successfully communicated with MPU9250");
+	} 
 
 	// Calibrate gyro and accelerometers, load biases in bias registers, then initialize MPU.
 	mpu.calibrate();
@@ -176,7 +175,10 @@ void setup() {
 	}
 
 
-	Serial.println("Accelerometer ready");
+	display.clearDisplay();
+	display.setCursor(0, 0);
+	display.println("MPU9250 calibrated!");
+	display.display();
 
 	mpu.selfTest();
 
@@ -193,17 +195,18 @@ void setup() {
 
 	if (result == true)
 	{
-		Serial.println("AP-Setup: Success");
+		display.println("AP-Setup: Success");
 	}
 	else
 	{
-		Serial.println("AP-Setup: Fail");
+		display.println("AP-Setup: Fail");
 	}
+	display.display();
 
 	IPAddress myIP = WiFi.softAPIP();
-	Serial.print("AP IP address: ");
-	Serial.println(myIP);
-
+	display.print("Address: ");
+	display.println(myIP);
+	display.display();
 
 
 	server.on("/", HTTP_GET, handleRoot);
@@ -211,14 +214,16 @@ void setup() {
 	server.onNotFound(handleNotFound);
 	server.begin();
 
-	Serial.println("HTTP Server started!");
+	display.println("HTTP Server started!");
+	display.display();
 }
 
 
 uint32_t lastSample = 0;
 uint32_t lastDataCount = 0;
 
-#define TEST_SAMPLRATE  false
+#define TEST_SAMPLRATE false
+
 
 void loop() {
 	server.handleClient();
@@ -250,6 +255,7 @@ void loop() {
 		//gyroResult.printResult();
 		//magResult.printResult();
 		orientResult.printResult();
+
 
 		if (TEST_SAMPLRATE)
 			Serial.println((millis() - lastSample) / lastDataCount);
