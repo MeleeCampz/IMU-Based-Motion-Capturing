@@ -18,7 +18,7 @@ const int m_intPin = D3;
 ///////////////////////////////////////////////////////////////////
 //Determines how often we sample data
 ///////////////////////////////////////////////////////////////////
-#define samplingRateInMillis 33
+#define samplingRateInMicros 333 * 1000
 
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
@@ -31,7 +31,6 @@ IMUResult magResult, accResult, gyroResult, orientResult;
 
 
 //WLAN
-MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiEventHandler eConnected, eGotIP;
 
@@ -117,23 +116,10 @@ void OnStationModeConnected(const WiFiEventStationModeConnected& event)
 
 }
 
-void trySetupDNS()
-{
-	if (mdns.begin("esp8266"))  // Start the mDNS responder for esp8266.local
-	{
-		Serial.println("mDNS responder started");
-	}
-	else
-	{
-		Serial.println("Error setting up MDNS responder!");
-	}
-}
-
 void OnStationGoIP(const WiFiEventStationModeGotIP& event)
 {
 	Serial.print("IP-Adress: ");
 	Serial.println(WiFi.localIP());
-	trySetupDNS();
 }
 
 
@@ -180,8 +166,6 @@ void setup() {
 	display.println("MPU9250 calibrated!");
 	display.display();
 
-	mpu.selfTest();
-
 	WiFi.disconnect();
 
 
@@ -222,7 +206,7 @@ void setup() {
 uint32_t lastSample = 0;
 uint32_t lastDataCount = 0;
 
-#define TEST_SAMPLRATE false
+#define TEST_SAMPLRATE true
 
 
 void loop() {
@@ -239,27 +223,29 @@ void loop() {
 		if (TEST_SAMPLRATE)
 			lastDataCount++;
 	}
-	else
-	{
-		Serial.println("to slow?");
-	}
 
 	// Must be called before updating quaternions!
 	mpu.updateTime();
 	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
 	readOrientation(&orientResult, declination);
 
-	if (millis() - lastSample > samplingRateInMillis)
+	if (micros() - lastSample > samplingRateInMicros)
 	{
 		//accResult.printResult();
 		//gyroResult.printResult();
 		//magResult.printResult();
-		orientResult.printResult();
+		//orientResult.printResult();
 
 
 		if (TEST_SAMPLRATE)
-			Serial.println((millis() - lastSample) / lastDataCount);
-		lastSample = millis();
+		{
+			Serial.print("Sampling rate in Hz:");
+			Serial.print(1000000.0f / ((micros() - lastSample) / lastDataCount)); //Print out herz
+			Serial.print(" @");
+			Serial.print(lastDataCount);
+			Serial.println(" Samples");
+		}
+		lastSample = micros();
 
 		if (TEST_SAMPLRATE)
 			lastDataCount = 0;
