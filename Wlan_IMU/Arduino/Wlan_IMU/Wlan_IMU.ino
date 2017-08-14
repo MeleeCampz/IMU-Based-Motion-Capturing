@@ -23,7 +23,7 @@ const int m_intPin = D3;
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
 ///////////////////////////////////////////////////////////////////
-#define declination 13.37  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
+#define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
 #define calibrateMagnetometer false  //Setting requires requires you to move device in figure 8 pattern when prompted over serial port.  Typically, you do this once, then manually provide the calibration values moving forward.
 
 MPU9250 mpu;
@@ -36,6 +36,7 @@ WiFiEventHandler eConnected, eGotIP;
 
 //DisplayTest
 Adafruit_SSD1306 display(OLED_RESET);
+const bool useDisplay = true;
 
 bool LEDTOGGLE = false;
 void tryConnectToNetwork(const char* SSID, const char* PW)
@@ -124,31 +125,35 @@ void OnStationGoIP(const WiFiEventStationModeGotIP& event)
 
 
 
-void setup() {	
+void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(115200);
 
 	//LCD
-	display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(WHITE);
+	if (useDisplay)
+	{
+		display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+		display.clearDisplay();
+		display.setTextSize(1);
+		display.setTextColor(WHITE);
+	}
 
 	//Init MPU
 	mpu.begin(SDA, SCL, m_intPin);
 	//This tests communication between the accelerometer and the ESP8266.  Dont continue until we get a successful reading.
 	byte c = 0x00;
-	while(c != 0x73)
+	while (c != 0x73)
 	{
 		c = mpu.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
 		if (c != 0x73)
 		{
 			delay(500);
 		}
-	} 
+	}
 
 	// Calibrate gyro and accelerometers, load biases in bias registers, then initialize MPU.
+	mpu.selfTest();
 	mpu.calibrate();
 	mpu.init();
 	if (calibrateMagnetometer)
@@ -157,19 +162,20 @@ void setup() {
 	}
 	else
 	{
-		mpu.setMagCalibrationManually(162, 130, 46);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
+		mpu.setMagCalibrationManually(-157, 451, 51);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
 	}
 
 
-	display.clearDisplay();
-	display.setCursor(0, 0);
-	display.println("MPU9250 calibrated!");
-	display.display();
-
-	WiFi.disconnect();
-
+	if (useDisplay)
+	{
+		display.clearDisplay();
+		display.setCursor(0, 0);
+		display.println("MPU9250 calibrated!");
+		display.display();
+	}
 
 	//Init WLAN
+	WiFi.disconnect();
 	WiFi.mode(WIFI_AP_STA);
 	eConnected = WiFi.onStationModeConnected(OnStationModeConnected);
 	eGotIP = WiFi.onStationModeGotIP(OnStationGoIP);
@@ -179,18 +185,25 @@ void setup() {
 
 	if (result == true)
 	{
-		display.println("AP-Setup: Success");
+		if (useDisplay)
+			display.println("AP-Setup: Success");
 	}
 	else
 	{
-		display.println("AP-Setup: Fail");
+		if (useDisplay)
+			display.println("AP-Setup: Fail");
 	}
-	display.display();
+	if (useDisplay)
+		display.display();
 
 	IPAddress myIP = WiFi.softAPIP();
-	display.print("Address: ");
-	display.println(myIP);
-	display.display();
+	
+	if (useDisplay)
+	{
+		display.print("Address: ");
+		display.println(myIP);
+		display.display();
+	}
 
 
 	server.on("/", HTTP_GET, handleRoot);
@@ -198,15 +211,18 @@ void setup() {
 	server.onNotFound(handleNotFound);
 	server.begin();
 
-	display.println("HTTP Server started!");
-	display.display();
+	if (useDisplay)
+	{
+		display.println("HTTP Server started!");
+		display.display();
+	}
 }
 
 
 uint32_t lastSample = 0;
 uint32_t lastDataCount = 0;
 
-#define TEST_SAMPLRATE true
+#define TEST_SAMPLRATE false
 
 
 void loop() {
@@ -227,29 +243,53 @@ void loop() {
 	// Must be called before updating quaternions!
 	mpu.updateTime();
 	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
-	readOrientation(&orientResult, declination);
+	//MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
-		//accResult.printResult();
-		//gyroResult.printResult();
-		//magResult.printResult();
+		readOrientation(&orientResult, declination);
 		//orientResult.printResult();
 
 
 		if (TEST_SAMPLRATE)
 		{
-			Serial.print("Sampling rate in Hz:");
-			Serial.print(1000000.0f / ((micros() - lastSample) / lastDataCount)); //Print out herz
-			Serial.print(" @");
-			Serial.print(lastDataCount);
-			Serial.println(" Samples");
+			//Serial.print("Sampling rate in Hz:");
+			//Serial.print(1000000.0f / ((micros() - lastSample) / lastDataCount)); //Print out herz
+			//Serial.print(" @");
+			//Serial.print(lastDataCount);
+			//Serial.println(" Samples");
+			if (useDisplay)
+			{
+				display.clearDisplay();
+				display.setCursor(0, 0);
+				display.println("Sampling rate in HZ:");
+				display.println(1000000.0f / ((micros() - lastSample) / lastDataCount));
+				display.print(" @");
+				display.print(lastDataCount);
+				display.println(" Samples");
+				display.display();
+			}
+		}
+		else
+		{
+			if (useDisplay)
+			{
+				display.clearDisplay();
+				display.setCursor(0, 0);
+				display.print("X: ");
+				display.println(orientResult.getXComponent());
+				display.print("Y: ");
+				display.println(orientResult.getYComponent());
+				display.print("Z: ");
+				display.println(orientResult.getZComponent());
+				display.display();
+			}
 		}
 		lastSample = micros();
 
 		if (TEST_SAMPLRATE)
 			lastDataCount = 0;
-		
+
 		mpu.sumCount = 0;
 		mpu.sum = 0;
 	}
