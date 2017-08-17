@@ -1,7 +1,4 @@
-#include <Wire.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
 #include "MPU9250.h"
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
@@ -18,7 +15,7 @@ const int m_intPin = D3;
 ///////////////////////////////////////////////////////////////////
 //Determines how often we sample data
 ///////////////////////////////////////////////////////////////////
-#define samplingRateInMicros 333 * 1000
+#define samplingRateInMicros 33 * 1000
 
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
@@ -30,30 +27,33 @@ MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, orientResult;
 
 
-//WLAN
-ESP8266WebServer server(80);
-WiFiEventHandler eConnected, eGotIP;
+//WLAN-AP to connect to
+const char* ssid = "IMU_AP";
+const char* password = "MultiPass";
+const uint8_t serverPort = 21;
+IPAddress serverAdress;
+WiFiClient IMU_AP;
 
 //DisplayTest
 Adafruit_SSD1306 display(OLED_RESET);
-const bool useDisplay = true;
+const bool useDisplay = false;
 
 bool LEDTOGGLE = false;
-void tryConnectToNetwork(const char* SSID, const char* PW)
+void tryConnectToNetwork()
 {
 	delay(100);
 
 	Serial.println();
 	Serial.println();
 	Serial.print("Connecting to network: ");
-	Serial.println(SSID);
-	Serial.println(PW);
+	Serial.println(ssid);
 
 	WiFi.disconnect();
-	WiFi.begin(SSID, PW);
+	WiFi.mode(WIFI_STA);
+	WiFi.begin(ssid, password);
 
 	int count = 0;
-	while (WiFi.status() != WL_CONNECTED && count++ < 20)
+	while (WiFi.status() != WL_CONNECTED)
 	{
 		delay(500);
 		Serial.print(".");
@@ -61,54 +61,16 @@ void tryConnectToNetwork(const char* SSID, const char* PW)
 	}
 	Serial.println("");
 
-	if (WiFi.status() != WL_CONNECTED)
-	{
-		Serial.println("Failed to connect to WifiNetwork!");
-	}
+	Serial.println("Connected!");
+	Serial.print("IP-Adress: ");
+	Serial.println(WiFi.localIP());
+
+	serverAdress = WiFi.gatewayIP();
 
 	digitalWrite(BUILTIN_LED, HIGH);
 }
 
-void handleRoot() {
-	String Message =
-		"<html>\
-			<head>\
-				<title>ESP8266 Demo</title>\
-				<style>\
-					body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-				</style>\
-			</head>\
-			<body>\
-				<h1>Hello from ESP8266!</h1>\
-				<form action=\"/login\" method=\POST\>\
-				<input type =\"text\" name=\"SSID\" placeholder=\"SSID\"></br>\
-				<input type =\"password\" name=\"password\" placeholder=\"Password\"></br>\
-				<input type=\"submit\" value=\"Login\"></form>\
-			</body>\
-		</html>";
-	server.send(200, "text/html", Message);
-}
 
-void handleLogin()
-{
-	if (!server.hasArg("SSID") || !server.hasArg("password")
-		|| server.arg("SSID") == NULL || server.arg("password") == NULL) { // If the POST request doesn't have username and password data
-		server.send(400, "text/plain", "400: Invalid Request");         // The request is invalid, so send HTTP status 400
-		return;
-	}
-
-
-	handleRoot();
-
-	String ssid = server.arg("SSID");
-	String pass = server.arg("password");
-
-	tryConnectToNetwork(ssid.c_str(), pass.c_str());
-}
-
-void handleNotFound() {
-	server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
-}
 
 void OnStationModeConnected(const WiFiEventStationModeConnected& event)
 {
@@ -124,7 +86,6 @@ void OnStationGoIP(const WiFiEventStationModeGotIP& event)
 }
 
 
-
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
@@ -138,6 +99,9 @@ void setup() {
 		display.setTextSize(1);
 		display.setTextColor(WHITE);
 	}
+
+	//Init WLAN
+	tryConnectToNetwork();
 
 	//Init MPU
 	mpu.begin(SDA, SCL, m_intPin);
@@ -173,49 +137,6 @@ void setup() {
 		display.println("MPU9250 calibrated!");
 		display.display();
 	}
-
-	//Init WLAN
-	WiFi.disconnect();
-	WiFi.mode(WIFI_AP_STA);
-	eConnected = WiFi.onStationModeConnected(OnStationModeConnected);
-	eGotIP = WiFi.onStationModeGotIP(OnStationGoIP);
-
-
-	bool result = WiFi.softAP("ESP8266-AP");
-
-	if (result == true)
-	{
-		if (useDisplay)
-			display.println("AP-Setup: Success");
-	}
-	else
-	{
-		if (useDisplay)
-			display.println("AP-Setup: Fail");
-	}
-	if (useDisplay)
-		display.display();
-
-	IPAddress myIP = WiFi.softAPIP();
-	
-	if (useDisplay)
-	{
-		display.print("Address: ");
-		display.println(myIP);
-		display.display();
-	}
-
-
-	server.on("/", HTTP_GET, handleRoot);
-	server.on("/login", HTTP_POST, handleLogin);
-	server.onNotFound(handleNotFound);
-	server.begin();
-
-	if (useDisplay)
-	{
-		display.println("HTTP Server started!");
-		display.display();
-	}
 }
 
 
@@ -225,9 +146,8 @@ uint32_t lastDataCount = 0;
 #define TEST_SAMPLRATE false
 
 
-void loop() {
-	server.handleClient();
-
+void loop()
+{
 	// If intPin goes high, all data registers have new data
 	// On interrupt, check if data ready interrupt
 	if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
@@ -242,54 +162,76 @@ void loop() {
 
 	// Must be called before updating quaternions!
 	mpu.updateTime();
-	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
-	//MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
 		readOrientation(&orientResult, declination);
 		//orientResult.printResult();
 
-
 		if (TEST_SAMPLRATE)
 		{
-			//Serial.print("Sampling rate in Hz:");
-			//Serial.print(1000000.0f / ((micros() - lastSample) / lastDataCount)); //Print out herz
-			//Serial.print(" @");
-			//Serial.print(lastDataCount);
-			//Serial.println(" Samples");
 			if (useDisplay)
 			{
 				display.clearDisplay();
 				display.setCursor(0, 0);
 				display.println("Sampling rate in HZ:");
-				display.println(1000000.0f / ((micros() - lastSample) / lastDataCount));
+				display.println(1000000.0f / (samplingRateInMicros / lastDataCount));
 				display.print(" @");
 				display.print(lastDataCount);
 				display.println(" Samples");
 				display.display();
 			}
 		}
+
 		else
 		{
 			if (useDisplay)
 			{
+				String debugStr = "";
+				debugStr += "X: ";
+				debugStr += orientResult.getXComponent();
+				debugStr += "Y: ";
+				debugStr += orientResult.getYComponent();
+				debugStr += "Z: ";
+				debugStr += orientResult.getZComponent();
+
+
 				display.clearDisplay();
 				display.setCursor(0, 0);
-				display.print("X: ");
-				display.println(orientResult.getXComponent());
-				display.print("Y: ");
-				display.println(orientResult.getYComponent());
-				display.print("Z: ");
-				display.println(orientResult.getZComponent());
+				display.println(debugStr);
 				display.display();
 			}
+
+			String str = ":";
+			str += orientResult.getXComponent();
+			str += ",";
+			str += orientResult.getYComponent();
+			str += ",";
+			str += orientResult.getZComponent();
+
+			const char* message = str.c_str();
+			if (!IMU_AP.connected())
+			{
+				if (!WiFi.isConnected())
+				{
+					tryConnectToNetwork();
+				}
+				IMU_AP.connect(serverAdress, serverPort);
+				while (!IMU_AP.connected())
+				{
+					Serial.print(".");
+					delay(100);
+				}
+			}
+			IMU_AP.write(message);
 		}
-		lastSample = micros();
 
 		if (TEST_SAMPLRATE)
 			lastDataCount = 0;
 
+		lastSample = micros();
 		mpu.sumCount = 0;
 		mpu.sum = 0;
 	}
