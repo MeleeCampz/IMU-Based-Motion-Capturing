@@ -145,6 +145,8 @@ uint32_t lastDataCount = 0;
 
 #define TEST_SAMPLRATE false
 
+char* sendBuffer = new char[12]; //3floats
+float r1, r2, r3;
 
 void loop()
 {
@@ -204,15 +206,18 @@ void loop()
 				display.display();
 			}
 
-			String str = ":";
-			str += orientResult.getXComponent();
-			str += ",";
-			str += orientResult.getYComponent();
-			str += ",";
-			str += orientResult.getZComponent();
+			//Debug quaternion
+			//Serial.print(":");
+			//Serial.print(getQ()[0]);
+			//Serial.print(",");
+			//Serial.print(getQ()[1]);
+			//Serial.print(",");
+			//Serial.print(getQ()[2]);
+			//Serial.print(",");
+			//Serial.print(getQ()[3]);
+			//Serial.println();
 
-			const char* message = str.c_str();
-			if (!IMU_AP.connected())
+			if (!IMU_AP.connected() || !WiFi.isConnected())
 			{
 				if (!WiFi.isConnected())
 				{
@@ -225,7 +230,16 @@ void loop()
 					delay(100);
 				}
 			}
-			IMU_AP.write(message);
+
+			r1 = orientResult.getXComponent();
+			r2 = orientResult.getYComponent();
+			r3 = orientResult.getZComponent();
+
+			memcpy(sendBuffer,		&r1,	sizeof(float));
+			memcpy(sendBuffer +4,	&r2,	sizeof(float));
+			memcpy(sendBuffer +8,	&r3,	sizeof(float));
+
+			IMU_AP.write((const char*)sendBuffer, 3 * sizeof(float));
 		}
 
 		if (TEST_SAMPLRATE)
