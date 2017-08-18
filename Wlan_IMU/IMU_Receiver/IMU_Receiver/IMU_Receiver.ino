@@ -33,6 +33,7 @@ void setup()
 char* readbuffer = new char[12]; //3 flots = 12chars
 const size_t bufferSize = sizeof(float[3]);
 float r1, r2, r3;
+IPAddress remoteAdress;
 
 // the loop function runs over and over again until power down or reset
 void loop()
@@ -66,17 +67,19 @@ void loop()
 				{
 					serverClients[i].readBytes(readbuffer, bufferSize);
 					
-					Serial.print(serverClients[i].remoteIP());
-					Serial.print(" -> ");
+					remoteAdress = serverClients[i].remoteIP();
+					Serial.print("+"); //||mark begin of data
+					Serial.print(remoteAdress[3]); //Only show last part of adress to save bandwidth
+					Serial.print(":"); //use ":" to mark start of rotation data
 					memcpy(&r1, readbuffer, sizeof(float));
 					Serial.print(r1);
-					Serial.print(", ");
+					Serial.print(",");
 					memcpy(&r2, readbuffer+4, sizeof(float));
 					Serial.print(r2);
-					Serial.print(", ");
+					Serial.print(",");
 					memcpy(&r3, readbuffer+8, sizeof(float));
 					Serial.print(r3);
-					Serial.println("-");
+					Serial.println("|"); //mark end of rotation data;
 				}
 				//you can reply to the client here
 			}

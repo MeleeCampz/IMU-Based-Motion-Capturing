@@ -93,7 +93,7 @@
   </ImportGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties custom_esp8266_nodemcuv2_CpuFrequency="160" arduino.upload.port="COM8" custom_esp8266_nodemcuv2_UploadSpeed="921600" />
+      <UserProperties custom_esp8266_nodemcuv2_CpuFrequency="160" arduino.upload.port="COM3" custom_esp8266_nodemcuv2_UploadSpeed="921600" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>
