@@ -8,6 +8,8 @@
 
 using serial::Serial;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FCloseDelegate);
+
 /**
  * 
  */
@@ -20,9 +22,21 @@ private:
 	Serial* _serial;
 
 public:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
 	UFUNCTION(BlueprintCallable, Category = "Serial")
 	bool OpenComPort(FString ComPortName, int baudrate);
 
 	UFUNCTION(BlueprintCallable, Category = "Serial")
 		bool ReadLine(FString & line);
+
+	//Return false, if no port was open
+	UFUNCTION(BlueprintCallable, Category = "Serial")
+		bool ClosePort();
+
+
+	UPROPERTY(BlueprintAssignable, Category = "Serial")
+		FCloseDelegate FOnCloseDelegate;
+
+
 };
