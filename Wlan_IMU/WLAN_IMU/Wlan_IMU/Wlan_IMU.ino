@@ -3,7 +3,7 @@
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
 #include "Adafruit_SSD1306.h"
-
+#include <WiFiUdp.h>
 
 //Pin Defines
 //Using default pin D2 for SDA
@@ -15,7 +15,7 @@ const int m_intPin = D3;
 ///////////////////////////////////////////////////////////////////
 //Determines how often we sample data
 ///////////////////////////////////////////////////////////////////
-#define samplingRateInMicros 33 * 1000
+#define samplingRateInMicros 1 //5 * 1000
 
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
@@ -28,10 +28,10 @@ IMUResult magResult, accResult, gyroResult, orientResult;
 
 
 //WLAN-AP to connect to
-const char* ssid = "IMU_AP";
+const char* ssid = "YouShallNotPass";
 const char* password = "MultiPass";
-const uint8_t serverPort = 21;
-IPAddress serverAdress;
+const uint16_t serverPort = 6676;
+const IPAddress serverAdress(192,168,0,139);
 WiFiClient IMU_AP;
 
 //DisplayTest
@@ -52,6 +52,7 @@ void tryConnectToNetwork()
 	WiFi.mode(WIFI_STA);
 	WiFi.begin(ssid, password);
 
+
 	int count = 0;
 	while (WiFi.status() != WL_CONNECTED)
 	{
@@ -64,8 +65,6 @@ void tryConnectToNetwork()
 	Serial.println("Connected!");
 	Serial.print("IP-Adress: ");
 	Serial.println(WiFi.localIP());
-
-	serverAdress = WiFi.gatewayIP();
 
 	digitalWrite(BUILTIN_LED, HIGH);
 }
@@ -89,7 +88,7 @@ void OnStationGoIP(const WiFiEventStationModeGotIP& event)
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
-	Serial.begin(115200);
+	Serial.begin(921600);
 
 	//LCD
 	if (useDisplay)
@@ -100,9 +99,6 @@ void setup() {
 		display.setTextColor(WHITE);
 	}
 
-	//Init WLAN
-	tryConnectToNetwork();
-
 	//Init MPU
 	mpu.begin(SDA, SCL, m_intPin);
 	//This tests communication between the accelerometer and the ESP8266.  Dont continue until we get a successful reading.
@@ -112,6 +108,7 @@ void setup() {
 		c = mpu.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
 		if (c != 0x73)
 		{
+			Serial.println("Waiting for MPU-9250");
 			delay(500);
 		}
 	}
@@ -126,7 +123,8 @@ void setup() {
 	}
 	else
 	{
-		mpu.setMagCalibrationManually(-157, 451, 51);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
+		mpu.setMagCalibrationManually(-192, 403, 93);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
+		//mpu.setMagCalibrationManually(0, 0, 0);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
 	}
 
 
@@ -137,6 +135,9 @@ void setup() {
 		display.println("MPU9250 calibrated!");
 		display.display();
 	}
+
+	WiFi.disconnect();
+	//IMU_AP.setNoDelay(true);
 }
 
 
@@ -164,13 +165,14 @@ void loop()
 
 	// Must be called before updating quaternions!
 	mpu.updateTime();
-	//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
-	MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	//MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
+		
 		readOrientation(&orientResult, declination);
-		//orientResult.printResult();
+		orientResult.printResult();
 
 		if (TEST_SAMPLRATE)
 		{
@@ -206,29 +208,22 @@ void loop()
 				display.display();
 			}
 
-			//Debug quaternion
-			//Serial.print(":");
-			//Serial.print(getQ()[0]);
-			//Serial.print(",");
-			//Serial.print(getQ()[1]);
-			//Serial.print(",");
-			//Serial.print(getQ()[2]);
-			//Serial.print(",");
-			//Serial.print(getQ()[3]);
-			//Serial.println();
-
 			if (!IMU_AP.connected() || !WiFi.isConnected())
 			{
 				if (!WiFi.isConnected())
 				{
 					tryConnectToNetwork();
 				}
-				IMU_AP.connect(serverAdress, serverPort);
-				while (!IMU_AP.connected())
+				digitalWrite(BUILTIN_LED, HIGH);
+				
+				while (!IMU_AP.connect(serverAdress, serverPort))
 				{
 					Serial.print(".");
+					digitalWrite(BUILTIN_LED, LEDTOGGLE = !LEDTOGGLE == false ? LOW : HIGH);	
 					delay(100);
 				}
+				
+				digitalWrite(BUILTIN_LED, LOW);
 			}
 
 			r1 = orientResult.getXComponent();
@@ -240,6 +235,7 @@ void loop()
 			memcpy(sendBuffer +8,	&r3,	sizeof(float));
 
 			IMU_AP.write((const char*)sendBuffer, 3 * sizeof(float));
+			IMU_AP.flush();
 		}
 
 		if (TEST_SAMPLRATE)

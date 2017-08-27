@@ -248,11 +248,11 @@ void MPU9250::magCalibrate()
 			if (mag_temp[jj] > mag_max[jj]) mag_max[jj] = mag_temp[jj];
 			if (mag_temp[jj] < mag_min[jj]) mag_min[jj] = mag_temp[jj];
 		}
-		Serial.print(mag_temp[0]);
-		Serial.print(" ,");
-		Serial.print(mag_temp[1]);
-		Serial.print(" ,");
-		Serial.println(mag_temp[2]);
+		//Serial.print(mag_temp[0]);
+		//Serial.print(" ,");
+		//Serial.print(mag_temp[1]);
+		//Serial.print(" ,");
+		//Serial.println(mag_temp[2]);
 		delay(135);  // at 8 Hz ODR, new mag data is available every 125 ms
 	}
 
@@ -344,7 +344,6 @@ void MPU9250::init()
 	initAK8963();
 
 }
-
 
 // Function which accumulates gyro and accelerometer data after device
 // initialization. It calculates the average of the at-rest readings and then

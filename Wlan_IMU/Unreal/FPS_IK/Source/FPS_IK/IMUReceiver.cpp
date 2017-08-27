@@ -18,11 +18,16 @@ void UIMUReceiver::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FIPv4Address ip(127, 0, 0, 1);
-	TSharedRef<FInternetAddr> addr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	addr->SetIp(ip.Value);
+	bool canBind = false;
+	TSharedRef<FInternetAddr> localIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, canBind);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, localIp->ToString(false));
+	uint32_t localIpAsInt;
+	localIp->GetIp(localIpAsInt);
+	//FIPv4Address ip(127, 0, 0, 1);
+	//TSharedRef<FInternetAddr> addr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	//addr->SetIp(ip.Value);
 
-	FIPv4Endpoint Endpoint(ip, 6676);
+	FIPv4Endpoint Endpoint(localIpAsInt, 6676);
 
 	FTcpSocketBuilder builder = FTcpSocketBuilder(TEXT("IMUSOCKET"));
 	builder = builder.AsReusable();

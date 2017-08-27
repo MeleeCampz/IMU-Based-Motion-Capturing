@@ -181,76 +181,76 @@
 class MPU9250
 {
   protected:
-    // Set initial input parameters
-    enum Ascale {
-      AFS_2G = 0,
-      AFS_4G,
-      AFS_8G,
-      AFS_16G
-    };
+	// Set initial input parameters
+	enum Ascale {
+	  AFS_2G = 0,
+	  AFS_4G,
+	  AFS_8G,
+	  AFS_16G
+	};
 
-    enum Gscale {
-      GFS_250DPS = 0,
-      GFS_500DPS,
-      GFS_1000DPS,
-      GFS_2000DPS
-    };
+	enum Gscale {
+	  GFS_250DPS = 0,
+	  GFS_500DPS,
+	  GFS_1000DPS,
+	  GFS_2000DPS
+	};
 
-    enum Mscale {
-      MFS_14BITS = 0, // 0.6 mG per LSB
-      MFS_16BITS      // 0.15 mG per LSB
-    };
+	enum Mscale {
+	  MFS_14BITS = 0, // 0.6 mG per LSB
+	  MFS_16BITS      // 0.15 mG per LSB
+	};
 
-    // Specify sensor full scale
-    uint8_t Gscale = GFS_250DPS;
-    uint8_t Ascale = AFS_2G;
-    // Choose either 14-bit or 16-bit magnetometer resolution
-    uint8_t Mscale = MFS_16BITS;
-    // 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
-    uint8_t Mmode = 0x02;
+	// Specify sensor full scale
+	uint8_t Gscale = GFS_250DPS;
+	uint8_t Ascale = AFS_2G;
+	// Choose either 14-bit or 16-bit magnetometer resolution
+	uint8_t Mscale = MFS_16BITS;
+	// 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
+	uint8_t Mmode = 0x02;
 
   public:
 
-    float temperature;   // Stores the real internal chip temperature in Celsius
-    int16_t tempCount;   // Temperature raw count output
+	float temperature;   // Stores the real internal chip temperature in Celsius
+	int16_t tempCount;   // Temperature raw count output
 
 
 
-    float deltat = 0.0f, sum = 0.0f;  // integration interval for both filter schemes
-    uint32_t lastUpdate = 0, firstUpdate = 0; // used to calculate integration interval
-    uint32_t Now = 0;        // used to calculate integration interval
-    uint32_t sumCount = 0;
-    // Factory mag calibration and mag bias
-    float magCalibration[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
-    // Bias corrections for gyro and accelerometer
-    float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0};
-    float SelfTest[6];
+	float deltat = 0.0f, sum = 0.0f;  // integration interval for both filter schemes
+	uint32_t lastUpdate = 0, firstUpdate = 0; // used to calculate integration interval
+	uint32_t Now = 0;        // used to calculate integration interval
+	uint32_t sumCount = 0;
+	// Factory mag calibration and mag bias
+	float magCalibration[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
+	// Bias corrections for gyro and accelerometer
+	float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0};
+	float SelfTest[6];
 
-    
+	
   public:
-    void begin(int sda, int scl, int intPin);
+	void begin(int sda, int scl, int intPin);
 
-    void readAccelData(IMUResult *);
-    void readGyroData(IMUResult *);
-    void readMagData(IMUResult *);
-    int16_t readTempData();
-    void updateTime();
-    void init();
-    void calibrate();
-    void selfTest();
-    void writeByte(uint8_t, uint8_t, uint8_t);
-    uint8_t readByte(uint8_t, uint8_t);
-    void readBytes(uint8_t, uint8_t, uint8_t, uint8_t *);
-    void setMagCalibrationManually(float magX, float magY, float magZ);
-    void magCalibrate();
+	void readAccelData(IMUResult *);
+	void readGyroData(IMUResult *);
+	void readMagData(IMUResult *);
+	int16_t readTempData();
+	void updateTime();
+	void init();
+	void calibrate();
+	void selfTest();
+	void writeByte(uint8_t, uint8_t, uint8_t);
+	uint8_t readByte(uint8_t, uint8_t);
+	void readBytes(uint8_t, uint8_t, uint8_t, uint8_t *);
+	void setMagCalibrationManually(float magX, float magY, float magZ);
+	void magCalibrate();
 
   private:
-    void initAK8963();
-    // Scale resolutions per LSB for the sensors
-    float getMres();
-    float getGres();
-    float getAres();
-    void readMagADC(int16_t * destination);
+	void initAK8963();
+	// Scale resolutions per LSB for the sensors
+	float getMres();
+	float getGres();
+	float getAres();
+	void readMagADC(int16_t * destination);
 };  // class MPU9250
 
 #endif // _MPU9250_H_
