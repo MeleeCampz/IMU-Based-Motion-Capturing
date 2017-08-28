@@ -3,7 +3,7 @@
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
 #include "Adafruit_SSD1306.h"
-#include <WiFiUdp.h>
+#include "FS.h"
 
 //Pin Defines
 //Using default pin D2 for SDA
@@ -69,26 +69,88 @@ void tryConnectToNetwork()
 	digitalWrite(BUILTIN_LED, HIGH);
 }
 
+int16_t loadIDFromFlash() {
+	File configFile = SPIFFS.open("/config.txt", "r");
+	if (!configFile) {
+		Serial.println("Failed to open config file");
+		return -1;
+	}
 
+	size_t size = configFile.size();
+	if (size > 1024) {
+		Serial.println("Config file size is too large");
+		return -1;
+	}
 
-void OnStationModeConnected(const WiFiEventStationModeConnected& event)
-{
-	Serial.print("WiFi connected: ");
-	Serial.println(event.ssid);
+	// Allocate a buffer to store contents of the file.
+	std::unique_ptr<char[]> buf(new char[size]);
 
+	// We don't use String here because ArduinoJson library requires the input
+	// buffer to be mutable. If you don't use ArduinoJson, you may as well
+	// use configFile.readString instead.
+	size_t fileSize = configFile.readBytes(buf.get(), size);
+
+	if (fileSize <= 0) 
+	{
+		Serial.println("Failed to read config file");
+		return -1;
+	}
+
+	
+	int16_t ID = atoi(buf.get());
+
+	configFile.close();
+
+	return ID;
 }
 
-void OnStationGoIP(const WiFiEventStationModeGotIP& event)
-{
-	Serial.print("IP-Adress: ");
-	Serial.println(WiFi.localIP());
+bool saveIDToFlash(uint16_t id) 
+{	
+	File configFile = SPIFFS.open("/config.txt", "w");
+	if (!configFile) 
+	{
+		Serial.println("Failed to open config file for writing");
+		return false;
+	}
+
+	String str(id);
+
+	for (int i = 0; i < str.length(); i++)
+	{
+		configFile.write(str[i]);
+	}
+
+	configFile.close();
+
+	return true;
 }
 
-
-void setup() {
+void setup() 
+{	
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(921600);
+
+	delay(500);
+
+
+	if (SPIFFS.begin())
+	{
+		if (saveIDToFlash(1000))
+		{
+			Serial.print("ID: ");
+			Serial.println(loadIDFromFlash());
+		}
+		else
+		{
+			Serial.println("Failed to save ID!");
+		}
+	}
+	else
+	{
+		Serial.println("Failed to start SPIFFS!");
+	}
+	SPIFFS.end();
 
 	//LCD
 	if (useDisplay)
