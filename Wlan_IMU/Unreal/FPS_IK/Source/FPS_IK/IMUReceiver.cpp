@@ -4,6 +4,9 @@
 #include "TcpSocketBuilder.h"
 #include "UdpSocketBuilder.h"
 
+
+#define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+
 // Sets default values for this component's properties
 UIMUReceiver::UIMUReceiver()
 {
@@ -123,7 +126,15 @@ void UIMUReceiver::TCPConnectionListener()
 	}
 }
 
+float UIMUReceiver::unpackFloat(const uint8_t *buffer)
+{
+	float f;
+	uint8_t b[] = { buffer[3], buffer[2], buffer[1], buffer[0] };
+	memcpy(&f, &b, sizeof(f));
 
+	//ESP8266 is little endian, so swap byte order!
+	return swap_endian(f);
+}
 
 void UIMUReceiver::TCPSocketListener()
 {
@@ -131,18 +142,31 @@ void UIMUReceiver::TCPSocketListener()
 	for (int i = 0; i < MAX_CONNECTIONS; i++)
 	{
 		FSocket* client = _clients[i];
-		if (client && client->HasPendingData(pendingSize))
+		while (client && client->HasPendingData(pendingSize))
 		{
 			int bytesRead;
 			client->Recv(&_TCPreveiceBuffer[0], _TCPreceiveBufferSize, bytesRead);
-			UE_LOG(LogTemp, Warning, TEXT("bytesRead: %i"), bytesRead);
 
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
+			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
+
+			if (bytesRead >= 12)
+			{
+				float r1 = unpackFloat(&_TCPreveiceBuffer[0]);
+				float r2 = unpackFloat(&_TCPreveiceBuffer[4]);
+				float r3 = unpackFloat(&_TCPreveiceBuffer[8]);
+
+				DebugRotation.Yaw = r1;
+				DebugRotation.Pitch = r2;
+				DebugRotation.Roll = r3;
+
+				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Rotation: %f, %f, %f"), r1, r2, r3));
+			}
 		}
-		else if (client && client->GetConnectionState() != ESocketConnectionState::SCS_Connected)
+		if (client && client->GetConnectionState() != ESocketConnectionState::SCS_Connected)
 		{
 			client->Close();
 			_clients[i] = nullptr;
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("TCP-Connection closed"));
 		}
 	}
 }

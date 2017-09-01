@@ -16,7 +16,7 @@ const int m_intPin = D3;
 ///////////////////////////////////////////////////////////////////
 //Determines how often we sample data
 ///////////////////////////////////////////////////////////////////
-#define samplingRateInMicros 1 //5 * 1000
+#define samplingRateInMicros 33 * 1000
 
 ///////////////////////////////////////////////////////////////////
 //Setup for the Accelerometer
@@ -226,6 +226,7 @@ void setup()
 	//IMU_AP.setNoDelay(true);
 
 	tryConnectToNetwork();
+	IMU_AP.setNoDelay(true);
 	Udp.begin(6677);
 }
 
@@ -345,7 +346,7 @@ void loop()
 			memcpy(sendBuffer + 8, &r3, sizeof(float));
 
 			IMU_AP.write((const char*)sendBuffer, 3 * sizeof(float));
-			IMU_AP.flush();
+			//IMU_AP.flush();
 		}
 
 		if (TEST_SAMPLRATE)
