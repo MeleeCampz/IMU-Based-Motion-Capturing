@@ -2,6 +2,7 @@
 
 #include "IMUReceiver.h"
 #include "TcpSocketBuilder.h"
+#include "UdpSocketBuilder.h"
 
 // Sets default values for this component's properties
 UIMUReceiver::UIMUReceiver()
@@ -33,40 +34,68 @@ void UIMUReceiver::BeginPlay()
 	builder = builder.AsReusable();
 	builder = builder.BoundToEndpoint(Endpoint);
 	builder = builder.Listening(MAX_CONNECTIONS);
-		
-	_socket = builder.Build();
 
-	if (_socket &&_socket->SetReceiveBufferSize(sizeof(_reveiceBuffer), _bufferSize))
+	_TCPReceiveSocket = builder.Build();
+
+	FUdpSocketBuilder udpBuilder = FUdpSocketBuilder(TEXT("UDPBroadcast"));
+	udpBuilder = udpBuilder.AsReusable();
+	udpBuilder = udpBuilder.WithBroadcast();
+	udpBuilder = udpBuilder.BoundToAddress(FIPv4Address::Any).BoundToPort(6677);
+
+	_UDPSocket = udpBuilder.Build();
+
+
+
+	if (_TCPReceiveSocket &&_TCPReceiveSocket->SetReceiveBufferSize(sizeof(_TCPreveiceBuffer), _TCPreceiveBufferSize))
 	{
-		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleConnection, this, &UIMUReceiver::TCPConnectionListener, 0.01f, true, 0.0f);
-		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleSocket, this, &UIMUReceiver::TCPSocketListener, 0.01f, true, 0.0f);
+		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleTCPConnection, this, &UIMUReceiver::TCPConnectionListener, 0.01f, true, 0.0f);
+		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleTCPSocket, this, &UIMUReceiver::TCPSocketListener, 0.01f, true, 0.0f);
 
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Socket started listening!"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("TCP Socket started listening!"));
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Socket failed listening!"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("TCP Socket failed listening!"));
+	}
+
+	if (_UDPSocket && _UDPSocket->SetReceiveBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize) && _UDPSocket->SetSendBufferSize(sizeof(_UDPSendBuffer), _UDPSendBufferSize))
+	{
+		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleUDPSocket, this, &UIMUReceiver::UDPSocketListener, 0.01f, true, 0.0f);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("UDP Socket started listening!"));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("UDP Socket failed listening!"));
 	}
 
 	for (int i = 0; i < MAX_CONNECTIONS; i++)
 	{
 		_clients[i] = nullptr;
 	}
+
+
 }
 
 
 void UIMUReceiver::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if(_socket)
+	if (_TCPReceiveSocket)
 	{
-		_socket->Close();
+		delete _TCPReceiveSocket;
+		_TCPReceiveSocket = nullptr;
 	}
 	for (int i = 0; i < MAX_CONNECTIONS; i++)
 	{
 		if (_clients[i])
 		{
-			_clients[i]->Close();
+			delete _clients[i];
+			_clients[i] = nullptr;
 		}
+	}
+	if (_UDPSocket)
+	{
+		delete _UDPSocket;
+		_UDPSocket = nullptr;
 	}
 }
 
@@ -80,20 +109,20 @@ void UIMUReceiver::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 void UIMUReceiver::TCPConnectionListener()
 {
 	bool pending;
-	if (_socket->HasPendingConnection(pending) && pending)
+	if (_TCPReceiveSocket->HasPendingConnection(pending) && pending)
 	{
 		for (int i = 0; i < MAX_CONNECTIONS; i++)
 		{
 			if (!_clients[i])
 			{
-				_clients[i] = _socket->Accept(TEXT("OtherSocket"));
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Accepted Connection"));
+				_clients[i] = _TCPReceiveSocket->Accept(TEXT("OtherSocket"));
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Accepted TCP-Connection"));
 				return;
 			}
 		}
 	}
 }
-	
+
 
 
 void UIMUReceiver::TCPSocketListener()
@@ -105,7 +134,7 @@ void UIMUReceiver::TCPSocketListener()
 		if (client && client->HasPendingData(pendingSize))
 		{
 			int bytesRead;
-			client->Recv(&_reveiceBuffer[0], _bufferSize, bytesRead);
+			client->Recv(&_TCPreveiceBuffer[0], _TCPreceiveBufferSize, bytesRead);
 			UE_LOG(LogTemp, Warning, TEXT("bytesRead: %i"), bytesRead);
 
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
@@ -115,5 +144,26 @@ void UIMUReceiver::TCPSocketListener()
 			client->Close();
 			_clients[i] = nullptr;
 		}
+	}
+}
+
+void UIMUReceiver::UDPSocketListener()
+{
+	int32 bytesRead, bytesSent;
+	uint32 pendingData;
+	while (_UDPSocket->HasPendingData(pendingData))
+	{
+		TSharedRef<FInternetAddr> senderAdr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+		_UDPSocket->GetPeerAddress(senderAdr.Get());
+
+		_UDPSocket->RecvFrom(_UDPReceiveBuffer, _UDPReceiveBufferSize, bytesRead, *senderAdr);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
+
+		uint32 adrs;
+		senderAdr->GetIp(adrs);
+		int32 port = senderAdr->GetPort();
+
+		_UDPSocket->SendTo(_UDPReceiveBuffer, bytesRead, bytesSent, senderAdr.Get());
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesSent: %i"), bytesSent));
 	}
 }

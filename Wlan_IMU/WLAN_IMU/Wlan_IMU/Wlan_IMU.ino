@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 #include "MPU9250.h"
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
@@ -28,17 +29,33 @@ IMUResult magResult, accResult, gyroResult, orientResult;
 
 
 //WLAN-AP to connect to
-const char* ssid = "YouShallNotPass";
-const char* password = "MultiPass";
+const char* ssid = "FRITZ!Box 4020 OR";
+const char* password = "16047439600292387861";
 const uint16_t serverPort = 6676;
-const IPAddress serverAdress(192,168,0,139);
+IPAddress serverAdress;
+bool serverAdressKnown = false;
 WiFiClient IMU_AP;
+
+WiFiUDP Udp;
+IPAddress broadcastAdress;
 
 //DisplayTest
 Adafruit_SSD1306 display(OLED_RESET);
 const bool useDisplay = false;
 
 bool LEDTOGGLE = false;
+
+const int UDP_PACKET_SIZE = 48;
+char udpBuffer[UDP_PACKET_SIZE];
+void fncUdpSend()
+{
+	strcpy(udpBuffer, "hello testing message");
+	Udp.beginPacket(broadcastAdress, 6677);
+	Serial.print("Size sent: ");
+	Serial.println(Udp.write(udpBuffer, sizeof(udpBuffer)));
+	Udp.endPacket();
+}
+
 void tryConnectToNetwork()
 {
 	delay(100);
@@ -63,8 +80,15 @@ void tryConnectToNetwork()
 	Serial.println("");
 
 	Serial.println("Connected!");
+
+	IPAddress adr = WiFi.localIP();
+	broadcastAdress = IPAddress(adr[0], adr[1], adr[2], 255);
+
 	Serial.print("IP-Adress: ");
-	Serial.println(WiFi.localIP());
+	Serial.println(adr);
+
+	Serial.print("Broadcast-Address: ");
+	Serial.println(broadcastAdress);
 
 	digitalWrite(BUILTIN_LED, HIGH);
 }
@@ -90,13 +114,13 @@ int16_t loadIDFromFlash() {
 	// use configFile.readString instead.
 	size_t fileSize = configFile.readBytes(buf.get(), size);
 
-	if (fileSize <= 0) 
+	if (fileSize <= 0)
 	{
 		Serial.println("Failed to read config file");
 		return -1;
 	}
 
-	
+
 	int16_t ID = atoi(buf.get());
 
 	configFile.close();
@@ -104,10 +128,10 @@ int16_t loadIDFromFlash() {
 	return ID;
 }
 
-bool saveIDToFlash(uint16_t id) 
-{	
+bool saveIDToFlash(uint16_t id)
+{
 	File configFile = SPIFFS.open("/config.txt", "w");
-	if (!configFile) 
+	if (!configFile)
 	{
 		Serial.println("Failed to open config file for writing");
 		return false;
@@ -125,8 +149,8 @@ bool saveIDToFlash(uint16_t id)
 	return true;
 }
 
-void setup() 
-{	
+void setup()
+{
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(921600);
@@ -134,7 +158,7 @@ void setup()
 	delay(500);
 
 
-	if (SPIFFS.begin())
+	/*if (SPIFFS.begin())
 	{
 		if (saveIDToFlash(1000))
 		{
@@ -150,7 +174,7 @@ void setup()
 	{
 		Serial.println("Failed to start SPIFFS!");
 	}
-	SPIFFS.end();
+	SPIFFS.end();*/
 
 	//LCD
 	if (useDisplay)
@@ -198,8 +222,11 @@ void setup()
 		display.display();
 	}
 
-	WiFi.disconnect();
+	//WiFi.disconnect();
 	//IMU_AP.setNoDelay(true);
+
+	tryConnectToNetwork();
+	Udp.begin(6677);
 }
 
 
@@ -213,6 +240,27 @@ float r1, r2, r3;
 
 void loop()
 {
+	if (!serverAdressKnown)
+	{
+		fncUdpSend();
+		delay(500);
+
+		int packetSize = Udp.parsePacket();
+		if (packetSize)
+		{
+			Serial.print("Received packet of size ");
+			Serial.println(packetSize);
+			Serial.print("From ");
+			serverAdress = Udp.remoteIP();
+			Serial.print(serverAdress);
+			Serial.print(", port ");
+			Serial.println(Udp.remotePort());
+
+			serverAdressKnown = true;
+		}
+
+		return;
+	}
 	// If intPin goes high, all data registers have new data
 	// On interrupt, check if data ready interrupt
 	if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
@@ -232,7 +280,7 @@ void loop()
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
-		
+
 		readOrientation(&orientResult, declination);
 		orientResult.printResult();
 
@@ -277,14 +325,14 @@ void loop()
 					tryConnectToNetwork();
 				}
 				digitalWrite(BUILTIN_LED, HIGH);
-				
+
 				while (!IMU_AP.connect(serverAdress, serverPort))
 				{
 					Serial.print(".");
-					digitalWrite(BUILTIN_LED, LEDTOGGLE = !LEDTOGGLE == false ? LOW : HIGH);	
+					digitalWrite(BUILTIN_LED, LEDTOGGLE = !LEDTOGGLE == false ? LOW : HIGH);
 					delay(100);
 				}
-				
+
 				digitalWrite(BUILTIN_LED, LOW);
 			}
 
@@ -292,9 +340,9 @@ void loop()
 			r2 = orientResult.getYComponent();
 			r3 = orientResult.getZComponent();
 
-			memcpy(sendBuffer,		&r1,	sizeof(float));
-			memcpy(sendBuffer +4,	&r2,	sizeof(float));
-			memcpy(sendBuffer +8,	&r3,	sizeof(float));
+			memcpy(sendBuffer, &r1, sizeof(float));
+			memcpy(sendBuffer + 4, &r2, sizeof(float));
+			memcpy(sendBuffer + 8, &r3, sizeof(float));
 
 			IMU_AP.write((const char*)sendBuffer, 3 * sizeof(float));
 			IMU_AP.flush();
@@ -307,4 +355,4 @@ void loop()
 		mpu.sumCount = 0;
 		mpu.sum = 0;
 	}
-}
+	}

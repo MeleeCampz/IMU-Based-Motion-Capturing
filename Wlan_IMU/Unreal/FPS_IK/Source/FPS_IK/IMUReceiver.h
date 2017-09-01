@@ -17,13 +17,21 @@ class FPS_IK_API UIMUReceiver : public UActorComponent
 	GENERATED_BODY()
 private:
 	
-	FSocket* _socket;
-	uint8 _reveiceBuffer[256];
-	int32 _bufferSize;
-	FTimerHandle _timeHandleConnection;
-	FTimerHandle _timeHandleSocket;
+	FSocket* _TCPReceiveSocket;
+	uint8 _TCPreveiceBuffer[256];
+	int32 _TCPreceiveBufferSize;
+	
+	FTimerHandle _timeHandleTCPConnection;
+	FTimerHandle _timeHandleTCPSocket;
+	FTimerHandle _timeHandleUDPSocket;
 
 	FSocket* _clients[MAX_CONNECTIONS];
+	
+	FSocket* _UDPSocket;
+	uint8 _UDPReceiveBuffer[256];
+	int32 _UDPReceiveBufferSize;
+	uint8 _UDPSendBuffer[256];
+	int32 _UDPSendBufferSize;
 
 public:	
 	// Sets default values for this component's properties
@@ -33,6 +41,7 @@ public:
 	//Timer functions, could be threads
 	void TCPConnectionListener(); 	//can thread this eventually
 	void TCPSocketListener();		//can thread this eventually
+	void UDPSocketListener();		//can thread this eventually
 
 protected:
 	// Called when the game starts
