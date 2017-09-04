@@ -1,72 +1,48 @@
 #include "ConfigManager.h"
 
+const char* ConfigManager::FILE_PATH = "/config.txt";
+const char* ConfigManager::KEY_ID = "ID";
+const char* ConfigManager::KEY_MAGNETCONFIG_1 = "MAG_CNFG_1";
+const char* ConfigManager::KEY_MAGNETCONFIG_2 = "MAG_CNFG_2";
+const char* ConfigManager::KEY_MAGNETCONFIG_3 = "MAG_CNFG_3";
 
-
-ConfigManager::ConfigManager()
+void ConfigManager::Begin()
 {
 	SPIFFS.begin();
 }
 
-
-ConfigManager::~ConfigManager()
+void ConfigManager::End()
 {
 	SPIFFS.end();
 }
 
 
-int16_t ConfigManager::loadIDFromFlash() 
+int16_t ConfigManager::LoadID() 
 {
-	File configFile = SPIFFS.open("/config.txt", "r");
-	if (!configFile) {
-		Serial.println("Failed to open config file");
-		return -1;
-	}
-
-	size_t size = configFile.size();
-	if (size > 1024) {
-		Serial.println("Config file size is too large");
-		return -1;
-	}
-
-	// Allocate a buffer to store contents of the file.
-	std::unique_ptr<char[]> buf(new char[size]);
-
-	// We don't use String here because ArduinoJson library requires the input
-	// buffer to be mutable. If you don't use ArduinoJson, you may as well
-	// use configFile.readString instead.
-	size_t fileSize = configFile.readBytes(buf.get(), size);
-
-	if (fileSize <= 0)
-	{
-		Serial.println("Failed to read config file");
-		return -1;
-	}
-
-
-	int16_t ID = atoi(buf.get());
-
-	configFile.close();
-
-	return ID;
+	int16_t out = -1;
+	ReadKey(KEY_ID, out);
+	return out;
 }
 
-bool ConfigManager::saveIDToFlash(uint16_t id)
+bool ConfigManager::SaveMagnetCalibration(float m1, float m2, float m3)
 {
-	File configFile = SPIFFS.open("/config.txt", "w");
-	if (!configFile)
-	{
-		Serial.println("Failed to open config file for writing");
-		return false;
-	}
+	bool b1 = WriteKeyValue(KEY_MAGNETCONFIG_1, m1);
+	bool b2 = WriteKeyValue(KEY_MAGNETCONFIG_2, m2);
+	bool b3 = WriteKeyValue(KEY_MAGNETCONFIG_3, m3);
 
-	String str(id);
+	return b1 && b2 && b3;
+}
 
-	for (int i = 0; i < str.length(); i++)
-	{
-		configFile.write(str[i]);
-	}
+bool ConfigManager::LoadMagnetCalibration(float & out_m1, float & out_m2, float & out_m3)
+{
+	bool b1 = ReadKey(KEY_MAGNETCONFIG_1, out_m1);
+	bool b2 = ReadKey(KEY_MAGNETCONFIG_2, out_m2);
+	bool b3 = ReadKey(KEY_MAGNETCONFIG_3, out_m3);
 
-	configFile.close();
+	return b1 && b2 && b3;
+}
 
-	return true;
+bool ConfigManager::SaveID(int16_t id)
+{
+	return WriteKeyValue(KEY_ID,id);
 }
