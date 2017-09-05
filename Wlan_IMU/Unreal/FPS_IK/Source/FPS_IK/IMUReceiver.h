@@ -20,6 +20,7 @@ private:
 	FSocket* _TCPReceiveSocket;
 	uint8 _TCPreveiceBuffer[256];
 	int32 _TCPreceiveBufferSize;
+	static const int32 TCP_PORT = 6676;
 	
 	FTimerHandle _timeHandleTCPConnection;
 	FTimerHandle _timeHandleTCPSocket;
@@ -30,8 +31,7 @@ private:
 	FSocket* _UDPSocket;
 	uint8 _UDPReceiveBuffer[256];
 	int32 _UDPReceiveBufferSize;
-	uint8 _UDPSendBuffer[256];
-	int32 _UDPSendBufferSize;
+	static const int32 UDP_PORT = 6678;
 
 public:	
 	// Sets default values for this component's properties

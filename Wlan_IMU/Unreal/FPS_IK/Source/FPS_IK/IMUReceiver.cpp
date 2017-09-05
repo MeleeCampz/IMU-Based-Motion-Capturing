@@ -31,7 +31,7 @@ void UIMUReceiver::BeginPlay()
 	//TSharedRef<FInternetAddr> addr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 	//addr->SetIp(ip.Value);
 
-	FIPv4Endpoint Endpoint(localIpAsInt, 6676);
+	FIPv4Endpoint Endpoint(localIpAsInt, TCP_PORT);
 
 	FTcpSocketBuilder builder = FTcpSocketBuilder(TEXT("IMUSOCKET"));
 	builder = builder.AsReusable();
@@ -43,7 +43,7 @@ void UIMUReceiver::BeginPlay()
 	FUdpSocketBuilder udpBuilder = FUdpSocketBuilder(TEXT("UDPBroadcast"));
 	udpBuilder = udpBuilder.AsReusable();
 	udpBuilder = udpBuilder.WithBroadcast();
-	udpBuilder = udpBuilder.BoundToAddress(FIPv4Address::Any).BoundToPort(6677);
+	udpBuilder = udpBuilder.BoundToAddress(FIPv4Address::Any).BoundToPort(UDP_PORT);
 
 	_UDPSocket = udpBuilder.Build();
 
@@ -61,7 +61,7 @@ void UIMUReceiver::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("TCP Socket failed listening!"));
 	}
 
-	if (_UDPSocket && _UDPSocket->SetReceiveBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize) && _UDPSocket->SetSendBufferSize(sizeof(_UDPSendBuffer), _UDPSendBufferSize))
+	if (_UDPSocket && _UDPSocket->SetReceiveBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize) && _UDPSocket->SetSendBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize))
 	{
 		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleUDPSocket, this, &UIMUReceiver::UDPSocketListener, 0.01f, true, 0.0f);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("UDP Socket started listening!"));
