@@ -3,7 +3,7 @@
 
 
 NetworkManager::NetworkManager()
-	: _initialted(false), _webServer(80), _curState(CONNECTED)
+	: _webServer(80), _curState(WAITING_FOR_CREDENTIALS), _curBufferSize(0)
 {
 }
 
@@ -13,26 +13,21 @@ NetworkManager::~NetworkManager()
 
 void NetworkManager::Begin()
 {
-	Serial.println("Trying to reconnect to last network");
+	//Setup udp
+	_Udp.begin(BROADCAST_PORT);
+	String message = "ESP8266 Broadcast from " + WiFi.macAddress();
+	strcpy(_udpSendBuffer, message.c_str());
 
-	//WiFi.reconnect();
-
-	//int retries = 0;
-	//while (WiFi.status() != WL_CONNECTED && retries++ < 16)
-	//{
-	//	Serial.print(".");
-	//	delay(1000);
-	//}
-	//Serial.println("");
-	//
-	//if (WiFi.status() == WL_CONNECTED)
-	//{
-	//	Serial.print("Reconnected to: ");
-	//	Serial.println(WiFi.SSID());
-	//	_curState = CONNECTED;
-
-	//	return;
-	//}
+	_Tcp.setNoDelay(true);
+	
+	//Try to reconnect
+	TryConnectToNetwork("", "");
+	
+	if (WiFi.status() == WL_CONNECTED && !WiFi.SSID().startsWith("ESP8266"))
+	{
+		_curState = CONNECTED_TO_WIFI;
+		return;
+	}
 
 	Serial.println("Failed to reconnect, starting WebConfig!");
 	_curState = WAITING_FOR_CREDENTIALS;
@@ -41,14 +36,28 @@ void NetworkManager::Begin()
 
 void NetworkManager::Update()
 {
+	float delta = millis() - _lastUpdatetime;
+	_lastUpdatetime = millis();
+	_updateTimer += delta;
+	
 	switch (_curState)
 	{
 	case NetworkManager::WAITING_FOR_CREDENTIALS:
 		_webServer.handleClient();
 		break;
-	case NetworkManager::CONNECTED:
-
+	case NetworkManager::CONNECTED_TO_WIFI:
+		if (_updateTimer >= BROADCAST_DELAY_MS)
+		{
+			SendUDPBroadcast();
+			CheckUDPResponse();
+			_updateTimer = 0;
+		}
 		break;
+	case NetworkManager::CONNECTED_TO_HOST:
+		if (!_Tcp.connected())
+		{
+			_Tcp.connect(_remoteIP, TCP_PORT);
+		}
 	default:
 		break;
 	}
@@ -106,14 +115,9 @@ void NetworkManager::handleLogin()
 
 	String ssid = _webServer.arg("SSID");
 	String pass = _webServer.arg("password");
-	TryConnectToNetwork(ssid.c_str(), pass.c_str());
 
-	//if this code gets executes connection was a success!
-
-	int n = WiFi.scanNetworks();
-	Serial.print(n);
-	Serial.println(" WiFi networks found, trying to connect to other ESP-Networks");
-	
+	Serial.println("Propagating Login-Data to other ESPs");
+	int n = WiFi.scanNetworks();	
 	for (int i = 0; i < n; ++i)
 	{
 		String SSID = WiFi.SSID(i);
@@ -147,10 +151,14 @@ void NetworkManager::handleLogin()
 			}
 		}
 	}
-
-	Serial.print("Finished iterating all ESP-networks, connecting back to: ");
+	
 	Serial.println(ssid);
-	TryConnectToNetwork(ssid.c_str(), pass.c_str());	
+	TryConnectToNetwork(ssid.c_str(), pass.c_str());
+
+	if (WiFi.status() == WL_CONNECTED && !WiFi.SSID().startsWith("ESP8266"))
+	{
+		_curState = CONNECTED_TO_WIFI;
+	}
 }
 
 void NetworkManager::handleNotFound()
@@ -158,13 +166,34 @@ void NetworkManager::handleNotFound()
 	_webServer.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
 
-bool NetworkManager::WriteData(NetData::IMUData data)
+bool NetworkManager::WriteData(const NetData::IMUData &data)
 {
-	return false;
+	if (!_Tcp.connected())
+	{
+		return false;
+	}
+	
+	if (sizeof(data) + _curBufferSize > MAX_BYTES_PER_PACKAGE * sizeof(char))
+	{
+		Flush();
+	}
+	memcpy(_TCPSendBuffer + _curBufferSize, &data, sizeof(data));
+	_curBufferSize += sizeof(data);
+	Flush();
+
+	return true;
 }
 
 bool NetworkManager::Flush()
 {
+	if (_curBufferSize > 0)
+	{
+		_Tcp.write(&_TCPSendBuffer[0], _curBufferSize);
+		_Tcp.flush();
+		_curBufferSize = 0;
+		return true;
+	}
+
 	return false;
 }
 
@@ -173,52 +202,64 @@ void NetworkManager::TryConnectToNetwork(const char* ssid, const char* pw)
 	delay(100);
 
 	Serial.println();
-	Serial.println();
-	Serial.print("Connecting to network: ");
-	Serial.println(ssid);
 
-	WiFi.disconnect();
 	WiFi.mode(WIFI_STA);
-	WiFi.begin(ssid, pw);
+	if (ssid == "")
+	{
+		Serial.println("Trying to reconnect to last network!");
+		WiFi.reconnect();
+	}
+	else
+	{
+		Serial.print("Connecting to network: ");
+		Serial.println(ssid);
+		WiFi.begin(ssid, pw);
+	}
 
 	int count = 0;
-	while (WiFi.status() != WL_CONNECTED)
+	while (WiFi.status() != WL_CONNECTED && count++ < 40)
 	{
 		delay(500);
-		Serial.print(".");
 		digitalWrite(BUILTIN_LED, _ledToggle = !_ledToggle == false ? LOW : HIGH);
 	}
-	Serial.println("");
-	Serial.println("Connected!");
-	Serial.print("IP-Adress: ");
-	IPAddress adr = WiFi.localIP();
-	Serial.println(adr);
-
-	_broadcastAdress = IPAddress(adr[0], adr[1], adr[2], 255);
+	
+	if (WiFi.status() == WL_CONNECTED)
+	{
+		Serial.println("");
+		Serial.println("Connected!");
+		Serial.print("IP-Adress: ");
+		IPAddress adr = WiFi.localIP();
+		Serial.println(adr);
+		_broadcastAdress = IPAddress(adr[0], adr[1], adr[2], 255);
+	}
+	else
+	{
+		Serial.println("Failed to connect");
+	}
 
 	digitalWrite(BUILTIN_LED, HIGH);
 }
 
 void NetworkManager::SendUDPBroadcast()
 {
-	strcpy(_udpBuffer, "ESP8266 Broadcast!");
 	_Udp.beginPacket(_broadcastAdress, BROADCAST_PORT);
-	Serial.println(_Udp.write(_udpBuffer, sizeof(_udpBuffer)));
+	_Udp.write(_udpSendBuffer, sizeof(_udpSendBuffer));
 	_Udp.endPacket();
-	Serial.print("Broadcast packet sent!");
+	Serial.println("Broadcast packet sent!");
 }
 
 void NetworkManager::CheckUDPResponse()
 {
-	int packetSize = _Udp.parsePacket();
-	if (packetSize)
+	
+	while (_Udp.parsePacket())
 	{
-		Serial.print("Received packet of size ");
-		Serial.println(packetSize);
-		Serial.print("From ");
-		_remoteIP = _Udp.remoteIP();
-		Serial.print(_remoteIP);
-		Serial.print(", port ");
-		Serial.println(_Udp.remotePort());
+		Serial.println(".");
+		String response = _Udp.readString();
+		if (response.equals(_udpSendBuffer))
+		{
+			_curState = NetworkManager::CONNECTED_TO_HOST;
+			_remoteIP = _Udp.remoteIP();
+			Serial.println("Received broadcast package!");
+		}
 	}
 }

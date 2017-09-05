@@ -21,37 +21,50 @@ private:
 	enum NetworkState
 	{
 		WAITING_FOR_CREDENTIALS,
-		CONNECTED
+		CONNECTED_TO_WIFI,
+		CONNECTED_TO_HOST
 	};
 
 	NetworkState _curState;
 	
 	static const int UDP_PACKET_SIZE = 48;
-	char _udpBuffer[UDP_PACKET_SIZE];
-	static const uint16_t BROADCAST_PORT = 6677;
+	char _udpSendBuffer[UDP_PACKET_SIZE];
+	static const uint16_t BROADCAST_PORT = 6678;
+	static const uint16_t BROADCAST_DELAY_MS = 1000;
 
-	static const int MAX_BYTES_PER_PACKAGE = 16;
+	//TCP
+	WiFiClient _Tcp;
+	static const uint16_t TCP_PORT = 6676;
+	static const int MAX_BYTES_PER_PACKAGE = 48;
 	char _TCPSendBuffer[MAX_BYTES_PER_PACKAGE];
-	char* curBufferPos;
+	size_t _curBufferSize;
 
 	bool _ledToggle = false;
+	
+	uint16_t _updateTimer = 0;
+	uint32_t _lastUpdatetime = 0;
 
 	IPAddress _localIP;
 	IPAddress _remoteIP;
 
+
+
 	//UDP
 	WiFiUDP _Udp;
-	uint16_t _port;
 	IPAddress _broadcastAdress;
 
 	//Server
 	ESP8266WebServer _webServer;
 
-	bool _initialted;
-
 	void CheckUDPResponse();
 	void SendUDPBroadcast();
+	//If ssid is not specified (empty string) mcu tries to connect to last network
 	void TryConnectToNetwork(const char* ssid, const char* pw);
+	///Webserver stuff
+	void BeginWebConfig();
+	void handleRoot();
+	void handleLogin();
+	void handleNotFound();
 public:
 	NetworkManager();
 	~NetworkManager();
@@ -59,15 +72,9 @@ public:
 	void Begin();
 	void Update();
 
-	///Webserver stuff
-	void BeginWebConfig();
-	void handleRoot();
-	void handleLogin();
-	void handleNotFound();
-
 
 	//Add data to buffer; send if buffer is full
-	bool WriteData(NetData::IMUData data);
+	bool WriteData(const NetData::IMUData &data);
 	//Forces to send data, even if buffer isn't full yet
 	bool Flush();
 };
