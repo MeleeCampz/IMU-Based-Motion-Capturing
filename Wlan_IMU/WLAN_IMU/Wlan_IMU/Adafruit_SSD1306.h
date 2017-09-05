@@ -147,6 +147,8 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   Adafruit_SSD1306(int8_t DC, int8_t RST, int8_t CS);
   Adafruit_SSD1306(int8_t RST = -1);
 
+  void setPins(int8_t SDI, int8_t scl);
+
   void begin(uint8_t switchvcc = SSD1306_SWITCHCAPVCC, uint8_t i2caddr = SSD1306_I2C_ADDRESS, bool reset=true);
   void ssd1306_command(uint8_t c);
 
@@ -170,6 +172,8 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
 
  private:
   int8_t _i2caddr, _vccstate, sid, sclk, dc, rst, cs;
+  int8_t _sda = -1;
+  int8_t _scl = -1;
   void fastSPIwrite(uint8_t c);
 
   boolean hwSPI;
