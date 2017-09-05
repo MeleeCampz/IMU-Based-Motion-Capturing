@@ -1,18 +1,16 @@
 #include <ESP8266WiFi.h>
 #include "NetworkManager.h"
 #include "ConfigManager.h"
+#include "DisplayHelper.h"
 
 #include "MPU9250.h"
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
 
-#include "Adafruit_SSD1306.h"
-
 //Pin Defines
 //Using default pin D2 for SDA
 //Using default pin D1 for SDA
 const int m_intPin = D3;
-#define OLED_RESET LED_BUILTIN
 
 
 ///////////////////////////////////////////////////////////////////
@@ -28,21 +26,11 @@ const int m_intPin = D3;
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, orientResult;
-
-
-//WLAN-AP to connect to
-const char* ssid = "FRITZ!Box 4020 OR";
-const char* password = "16047439600292387861";
-const uint16_t serverPort = 6676;
 NetworkManager networkManager;
 
-IPAddress serverAdress;
-bool serverAdressKnown = false;
-WiFiClient IMU_AP;
-
 //DisplayTest
-Adafruit_SSD1306 display(OLED_RESET);
-const bool useDisplay = false;
+DisplayHelper display;
+const bool useDisplay = true;
 
 void setupMPU()
 {
@@ -67,20 +55,19 @@ void setupMPU()
 	if (calibrateMagnetometer)
 	{
 		mpu.magCalibrate();
+		ConfigManager::SaveMagnetCalibration(mpu.magBias[0], mpu.magBias[1], mpu.magBias[2]);
 	}
 	else
 	{
-		mpu.setMagCalibrationManually(-192, 403, 93);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
-														 //mpu.setMagCalibrationManually(0, 0, 0);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
+		float f1, f2, f3;
+		ConfigManager::LoadMagnetCalibration(f1, f2, f3);
+		mpu.setMagCalibrationManually(f1, f2, f3);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   														 //mpu.setMagCalibrationManually(0, 0, 0);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
 	}
 
 
 	if (useDisplay)
 	{
-		display.clearDisplay();
-		display.setCursor(0, 0);
-		display.println("MPU9250 calibrated!");
-		display.display();
+		display.ClearAndDisplay("MPU9250 calibrated!");
 	}
 }
 
@@ -89,29 +76,23 @@ void setup()
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(921600);
+	delay(250);
 
-	delay(500);
-
-	setupMPU();
-
-	//LCD
 	if (useDisplay)
-	{
-		display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-		display.clearDisplay();
-		display.setTextSize(1);
-		display.setTextColor(WHITE);
-	}
+		display.BeginDisplay();
+
+	ConfigManager::Begin();
+	setupMPU();
+	ConfigManager::End();
 
 	networkManager.Begin();
-	//networkMAnager.TryConnectToNetwork();
 }
 
-
+uint32_t lastUpdate = 0;
 uint32_t lastSample = 0;
 uint32_t lastDataCount = 0;
 
-#define TEST_SAMPLRATE false
+#define TEST_SAMPLRATE true
 
 char* sendBuffer = new char[12]; //3floats
 float r1, r2, r3;
@@ -119,106 +100,59 @@ float r1, r2, r3;
 void loop()
 {
 	networkManager.Update();
-	
-	//if (!serverAdressKnown)
-	//{
-	//	fncUdpSend();
-	//	delay(500);
 
-	//	return;
-	//}
-	//// If intPin goes high, all data registers have new data
-	//// On interrupt, check if data ready interrupt
-	//if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-	//{
-	//	mpu.readAccelData(&accResult);
-	//	mpu.readGyroData(&gyroResult);
-	//	mpu.readMagData(&magResult);
+	// If intPin goes high, all data registers have new data
+	// On interrupt, check if data ready interrupt
+	if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
+	{
+		mpu.readAccelData(&accResult);
+		mpu.readGyroData(&gyroResult);
+		mpu.readMagData(&magResult);
+		if (TEST_SAMPLRATE)
+			lastDataCount++;
+	}
 
-	//	if (TEST_SAMPLRATE)
-	//		lastDataCount++;
-	//}
+	float delta = (micros() - lastUpdate) / 1000000.f;
+	lastUpdate = micros();
+	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+	//MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
 
-	//// Must be called before updating quaternions!
-	//mpu.updateTime();
-	//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
-	////MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, mpu.deltat);
+	if (micros() - lastSample > samplingRateInMicros)
+	{
 
-	//if (micros() - lastSample > samplingRateInMicros)
-	//{
+		readOrientation(&orientResult, declination);
+		//orientResult.printResult();
 
-	//	readOrientation(&orientResult, declination);
-	//	orientResult.printResult();
+		if (TEST_SAMPLRATE)
+		{
+			if (useDisplay)
+			{
+				float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
 
-	//	if (TEST_SAMPLRATE)
-	//	{
-	//		if (useDisplay)
-	//		{
-	//			display.clearDisplay();
-	//			display.setCursor(0, 0);
-	//			display.println("Sampling rate in HZ:");
-	//			display.println(1000000.0f / (samplingRateInMicros / lastDataCount));
-	//			display.print(" @");
-	//			display.print(lastDataCount);
-	//			display.println(" Samples");
-	//			display.display();
-	//		}
-	//	}
-
-	//	else
-	//	{
-	//		if (useDisplay)
-	//		{
-	//			String debugStr = "";
-	//			debugStr += "X: ";
-	//			debugStr += orientResult.getXComponent();
-	//			debugStr += "Y: ";
-	//			debugStr += orientResult.getYComponent();
-	//			debugStr += "Z: ";
-	//			debugStr += orientResult.getZComponent();
+				display.ClearDisplay();
+				display.println("Sampling rate in HZ:");
+				display.println(samplingRate);
+				display.print(" @");
+				display.print(lastDataCount);
+				display.printlnAndDisplay(" Samples");
+			}
+		}
 
 
-	//			display.clearDisplay();
-	//			display.setCursor(0, 0);
-	//			display.println(debugStr);
-	//			display.display();
-	//		}
+		NetData::IMUData data;
+		data.rotation[0] = orientResult.getXComponent();
+		data.rotation[1] = orientResult.getYComponent();
+		data.rotation[2] = orientResult.getZComponent();
 
-	//		if (!IMU_AP.connected() || !WiFi.isConnected())
-	//		{
-	//			if (!WiFi.isConnected())
-	//			{
-	//				tryConnectToNetwork();
-	//			}
-	//			digitalWrite(BUILTIN_LED, HIGH);
+		data.acceleration[0] = 111;
+		data.acceleration[1] = 222;
+		data.acceleration[2] = 333;
 
-	//			while (!IMU_AP.connect(serverAdress, serverPort))
-	//			{
-	//				Serial.print(".");
-	//				digitalWrite(BUILTIN_LED, LEDTOGGLE = !LEDTOGGLE == false ? LOW : HIGH);
-	//				delay(100);
-	//			}
+		networkManager.WriteData(data);
 
-	//			digitalWrite(BUILTIN_LED, LOW);
-	//		}
+		if (TEST_SAMPLRATE)
+			lastDataCount = 0;
 
-	//		r1 = orientResult.getXComponent();
-	//		r2 = orientResult.getYComponent();
-	//		r3 = orientResult.getZComponent();
-
-	//		memcpy(sendBuffer, &r1, sizeof(float));
-	//		memcpy(sendBuffer + 4, &r2, sizeof(float));
-	//		memcpy(sendBuffer + 8, &r3, sizeof(float));
-
-	//		IMU_AP.write((const char*)sendBuffer, 3 * sizeof(float));
-	//		//IMU_AP.flush();
-	//	}
-
-	//	if (TEST_SAMPLRATE)
-	//		lastDataCount = 0;
-
-	//	lastSample = micros();
-	//	mpu.sumCount = 0;
-	//	mpu.sum = 0;
-	//}
+		lastSample = micros();
+	}
 }
