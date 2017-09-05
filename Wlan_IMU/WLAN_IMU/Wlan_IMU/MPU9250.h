@@ -213,13 +213,6 @@ class MPU9250
 
 	float temperature;   // Stores the real internal chip temperature in Celsius
 	int16_t tempCount;   // Temperature raw count output
-
-
-
-	float deltat = 0.0f, sum = 0.0f;  // integration interval for both filter schemes
-	uint32_t lastUpdate = 0, firstUpdate = 0; // used to calculate integration interval
-	uint32_t Now = 0;        // used to calculate integration interval
-	uint32_t sumCount = 0;
 	// Factory mag calibration and mag bias
 	float magCalibration[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
 	// Bias corrections for gyro and accelerometer
@@ -234,7 +227,6 @@ class MPU9250
 	void readGyroData(IMUResult *);
 	void readMagData(IMUResult *);
 	int16_t readTempData();
-	void updateTime();
 	void init();
 	void calibrate();
 	void selfTest();
