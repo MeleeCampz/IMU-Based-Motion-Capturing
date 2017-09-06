@@ -1,9 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "IMUReceiver.h"
-#include "TcpSocketBuilder.h"
 #include "UdpSocketBuilder.h"
-
 
 #define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
 
@@ -27,78 +25,64 @@ void UIMUReceiver::BeginPlay()
 	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, localIp->ToString(false));
 	uint32_t localIpAsInt;
 	localIp->GetIp(localIpAsInt);
-	//FIPv4Address ip(127, 0, 0, 1);
-	//TSharedRef<FInternetAddr> addr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-	//addr->SetIp(ip.Value);
 
-	FIPv4Endpoint Endpoint(localIpAsInt, TCP_PORT);
+	FIPv4Endpoint Endpoint(localIpAsInt, DATA_PORT);
 
-	FTcpSocketBuilder builder = FTcpSocketBuilder(TEXT("IMUSOCKET"));
-	builder = builder.AsReusable();
-	builder = builder.BoundToEndpoint(Endpoint);
-	builder = builder.Listening(MAX_CONNECTIONS);
+	FUdpSocketBuilder dataSocketBuilder = FUdpSocketBuilder(TEXT("IMUSOCKET"))
+		.AsReusable()
+		.BoundToEndpoint(Endpoint)
+		.WithReceiveBufferSize(_DataReceiveBufferSize);
 
-	_TCPReceiveSocket = builder.Build();
+	_DataReceiveSocket = dataSocketBuilder.Build();
+	FTimespan ThreadWaitTimeData = FTimespan::FromMilliseconds(1000);
 
-	FUdpSocketBuilder udpBuilder = FUdpSocketBuilder(TEXT("UDPBroadcast"));
-	udpBuilder = udpBuilder.AsReusable();
-	udpBuilder = udpBuilder.WithBroadcast();
-	udpBuilder = udpBuilder.BoundToAddress(FIPv4Address::Any).BoundToPort(UDP_PORT);
-
-	_UDPSocket = udpBuilder.Build();
+	_DataReceiver = new FUdpSocketReceiver(_DataReceiveSocket, ThreadWaitTimeData, TEXT("DataReceiveSocket"));
+	_DataReceiver->OnDataReceived().BindUObject(this, &UIMUReceiver::RecvData);
+	_DataReceiver->Start();
 
 
+	FUdpSocketBuilder broadcastSocketBuilder = FUdpSocketBuilder(TEXT("UDPBroadcast"))
+		.AsReusable()
+		.BoundToAddress(FIPv4Address::Any).BoundToPort(BROADCAST_PORT)
+		.WithReceiveBufferSize(_BroadcastReceiveBufferSize);
+	
+	_BroadcastSocket = broadcastSocketBuilder.Build();
+	FTimespan ThreadWaitTimeBroadcast = FTimespan::FromMilliseconds(1000);
 
-	if (_TCPReceiveSocket &&_TCPReceiveSocket->SetReceiveBufferSize(sizeof(_TCPreveiceBuffer), _TCPreceiveBufferSize))
-	{
-		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleTCPConnection, this, &UIMUReceiver::TCPConnectionListener, 0.01f, true, 0.0f);
-		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleTCPSocket, this, &UIMUReceiver::TCPSocketListener, 0.01f, true, 0.0f);
-
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("TCP Socket started listening!"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("TCP Socket failed listening!"));
-	}
-
-	if (_UDPSocket && _UDPSocket->SetReceiveBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize) && _UDPSocket->SetSendBufferSize(sizeof(_UDPReceiveBuffer), _UDPReceiveBufferSize))
-	{
-		GetOwner()->GetWorldTimerManager().SetTimer(_timeHandleUDPSocket, this, &UIMUReceiver::UDPSocketListener, 0.01f, true, 0.0f);
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("UDP Socket started listening!"));
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("UDP Socket failed listening!"));
-	}
-
-	for (int i = 0; i < MAX_CONNECTIONS; i++)
-	{
-		_clients[i] = nullptr;
-	}
-
-
+	_BroadcastReceiver = new FUdpSocketReceiver(_BroadcastSocket, ThreadWaitTimeBroadcast, TEXT("BroadcastReceiveSocket"));
+	_BroadcastReceiver->OnDataReceived().BindUObject(this, &UIMUReceiver::RecvBroadcast);
+	_BroadcastReceiver->Start();	
 }
 
 
 void UIMUReceiver::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (_TCPReceiveSocket)
+	if (_DataReceiver)
 	{
-		delete _TCPReceiveSocket;
-		_TCPReceiveSocket = nullptr;
+		_DataReceiver->Stop();
+		delete _DataReceiver;
+		_DataReceiver = nullptr;
 	}
-	for (int i = 0; i < MAX_CONNECTIONS; i++)
+
+	if (_DataReceiveSocket)
 	{
-		if (_clients[i])
-		{
-			delete _clients[i];
-			_clients[i] = nullptr;
-		}
+		_DataReceiveSocket->Close();
+		delete _DataReceiveSocket;
+		_DataReceiveSocket = nullptr;
 	}
-	if (_UDPSocket)
+
+	if (_BroadcastReceiver)
 	{
-		delete _UDPSocket;
-		_UDPSocket = nullptr;
+		_BroadcastReceiver->Stop();
+		delete _BroadcastReceiver;
+		_BroadcastReceiver = nullptr;
+	}
+
+	if (_BroadcastSocket)
+	{
+		_BroadcastSocket->Close();
+		delete _BroadcastSocket;
+		_BroadcastSocket = nullptr;
 	}
 }
 
@@ -107,23 +91,6 @@ void UIMUReceiver::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-}
-
-void UIMUReceiver::TCPConnectionListener()
-{
-	bool pending;
-	if (_TCPReceiveSocket->HasPendingConnection(pending) && pending)
-	{
-		for (int i = 0; i < MAX_CONNECTIONS; i++)
-		{
-			if (!_clients[i])
-			{
-				_clients[i] = _TCPReceiveSocket->Accept(TEXT("OtherSocket"));
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Accepted TCP-Connection"));
-				return;
-			}
-		}
-	}
 }
 
 float UIMUReceiver::unpackFloat(const uint8_t *buffer)
@@ -136,58 +103,40 @@ float UIMUReceiver::unpackFloat(const uint8_t *buffer)
 	return swap_endian(f);
 }
 
-void UIMUReceiver::TCPSocketListener()
+int16_t UIMUReceiver::unpackInt16(const uint8_t * buffer)
 {
-	uint32 pendingSize;
-	for (int i = 0; i < MAX_CONNECTIONS; i++)
-	{
-		FSocket* client = _clients[i];
-		while (client && client->HasPendingData(pendingSize))
-		{
-			int bytesRead;
-			client->Recv(&_TCPreveiceBuffer[0], _TCPreceiveBufferSize, bytesRead);
-
-			//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
-
-			if (bytesRead >= 12)
-			{
-				float r1 = unpackFloat(&_TCPreveiceBuffer[0]);
-				float r2 = unpackFloat(&_TCPreveiceBuffer[4]);
-				float r3 = unpackFloat(&_TCPreveiceBuffer[8]);
-
-				DebugRotation.Yaw = r1;
-				DebugRotation.Pitch = r2;
-				DebugRotation.Roll = r3;
-
-				//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Rotation: %f, %f, %f"), r1, r2, r3));
-			}
-		}
-		if (client && client->GetConnectionState() != ESocketConnectionState::SCS_Connected)
-		{
-			client->Close();
-			_clients[i] = nullptr;
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("TCP-Connection closed"));
-		}
-	}
+	int16_t ret;
+	uint8_t b[] = { buffer[1], buffer[0] };
+	memcpy(&ret, &b, sizeof(int16_t));
+	
+	return ret;
 }
 
-void UIMUReceiver::UDPSocketListener()
+void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {
-	int32 bytesRead, bytesSent;
-	uint32 pendingData;
-	while (_UDPSocket->HasPendingData(pendingData))
+	int32 dataSize = ArrayReaderPtr->Num();	
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), dataSize));
+
+	int32 bytesSent;
+	_BroadcastSocket->SendTo(ArrayReaderPtr->GetData(), dataSize, bytesSent, EndPt.ToInternetAddr().Get());
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesSent: %i"), bytesSent));
+}
+
+void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4Endpoint & EndPt)
+{
+	int32 dataSize = ArrayReaderPtr->Num();
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::Printf(TEXT("bytesRead: %i"), dataSize));
+
+	if (dataSize >= 12)
 	{
-		TSharedRef<FInternetAddr> senderAdr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-		_UDPSocket->GetPeerAddress(senderAdr.Get());
+		float r1 = unpackFloat(&ArrayReaderPtr->GetData()[0]);
+		float r2 = unpackFloat(&ArrayReaderPtr->GetData()[4]);
+		float r3 = unpackFloat(&ArrayReaderPtr->GetData()[8]);
 
-		_UDPSocket->RecvFrom(_UDPReceiveBuffer, _UDPReceiveBufferSize, bytesRead, *senderAdr);
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), bytesRead));
+		DebugRotation.Yaw = r1;
+		DebugRotation.Pitch = r2;
+		DebugRotation.Roll = r3;
 
-		uint32 adrs;
-		senderAdr->GetIp(adrs);
-		int32 port = senderAdr->GetPort();
-
-		_UDPSocket->SendTo(_UDPReceiveBuffer, bytesRead, bytesSent, senderAdr.Get());
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesSent: %i"), bytesSent));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Rotation: %f, %f, %f"), r1, r2, r3));
 	}
 }

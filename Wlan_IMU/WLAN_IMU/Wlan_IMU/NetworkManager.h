@@ -33,10 +33,10 @@ private:
 	static const uint16_t BROADCAST_DELAY_MS = 1000;
 
 	//TCP
-	WiFiClient _Tcp;
-	static const uint16_t TCP_PORT = 6676;
+	//WiFiClient _Tcp;
+	static const uint16_t DATA_PORT = 6676;
 	static const int MAX_BYTES_PER_PACKAGE = 48;
-	char _TCPSendBuffer[MAX_BYTES_PER_PACKAGE];
+	char _DataSendBuffer[MAX_BYTES_PER_PACKAGE];
 	size_t _curBufferSize;
 
 	bool _ledToggle = false;

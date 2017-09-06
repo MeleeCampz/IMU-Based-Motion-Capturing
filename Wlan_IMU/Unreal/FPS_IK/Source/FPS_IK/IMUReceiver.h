@@ -5,7 +5,7 @@
 #include "UnrealNetwork.h"
 #include "Sockets.h"
 #include "CoreMinimal.h"
-#include "TimerManager.h"
+#include "UdpSocketReceiver.h"
 #include "Components/ActorComponent.h"
 #include "IMUReceiver.generated.h"
 
@@ -17,31 +17,23 @@ class FPS_IK_API UIMUReceiver : public UActorComponent
 	GENERATED_BODY()
 private:
 	
-	FSocket* _TCPReceiveSocket;
-	uint8 _TCPreveiceBuffer[256];
-	int32 _TCPreceiveBufferSize;
-	static const int32 TCP_PORT = 6676;
+	FSocket* _DataReceiveSocket;
+	FUdpSocketReceiver* _DataReceiver = nullptr;
+	int32 _DataReceiveBufferSize = 24; //in bytes
+	static const int32 DATA_PORT = 6676;
 	
-	FTimerHandle _timeHandleTCPConnection;
-	FTimerHandle _timeHandleTCPSocket;
-	FTimerHandle _timeHandleUDPSocket;
-
-	FSocket* _clients[MAX_CONNECTIONS];
-	
-	FSocket* _UDPSocket;
-	uint8 _UDPReceiveBuffer[256];
-	int32 _UDPReceiveBufferSize;
-	static const int32 UDP_PORT = 6678;
+	FSocket* _BroadcastSocket;
+	FUdpSocketReceiver* _BroadcastReceiver = nullptr;
+	int32 _BroadcastReceiveBufferSize = 48; //in bytes
+	static const int32 BROADCAST_PORT = 6678;
 
 public:	
 	// Sets default values for this component's properties
 	UIMUReceiver();
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	//Timer functions, could be threads
-	void TCPConnectionListener(); 	//can thread this eventually
-	void TCPSocketListener();		//can thread this eventually
-	void UDPSocketListener();		//can thread this eventually
+	void RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
+	void RecvData(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator DebugRotation;
@@ -71,4 +63,5 @@ protected:
 	};
 
 	float unpackFloat(const uint8_t *buffer);
+	int16_t unpackInt16(const uint8_t *buffer);
 };

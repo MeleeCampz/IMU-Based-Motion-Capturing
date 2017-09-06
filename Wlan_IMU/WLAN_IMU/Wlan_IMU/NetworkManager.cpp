@@ -17,8 +17,6 @@ void NetworkManager::Begin()
 	_Udp.begin(BROADCAST_PORT);
 	String message = "ESP8266 Broadcast from " + WiFi.macAddress();
 	strcpy(_udpSendBuffer, message.c_str());
-
-	_Tcp.setNoDelay(true);
 	
 	//Try to reconnect
 	TryConnectToNetwork("", "");
@@ -54,10 +52,10 @@ void NetworkManager::Update()
 		}
 		break;
 	case NetworkManager::CONNECTED_TO_HOST:
-		if (!_Tcp.connected())
-		{
-			_Tcp.connect(_remoteIP, TCP_PORT);
-		}
+		//if (!_Tcp.connected())
+		//{
+		//	_Tcp.connect(_remoteIP, TCP_PORT);
+		//}
 	default:
 		break;
 	}
@@ -168,16 +166,11 @@ void NetworkManager::handleNotFound()
 
 bool NetworkManager::WriteData(const NetData::IMUData &data)
 {
-	if (!_Tcp.connected())
-	{
-		return false;
-	}
-	
 	if (sizeof(data) + _curBufferSize > MAX_BYTES_PER_PACKAGE * sizeof(char))
 	{
 		Flush();
 	}
-	memcpy(_TCPSendBuffer + _curBufferSize, &data, sizeof(data));
+	memcpy(_DataSendBuffer + _curBufferSize, &data, sizeof(data));
 	_curBufferSize += sizeof(data);
 	Flush();
 
@@ -188,8 +181,9 @@ bool NetworkManager::Flush()
 {
 	if (_curBufferSize > 0)
 	{
-		_Tcp.write(&_TCPSendBuffer[0], _curBufferSize);
-		_Tcp.flush();
+		_Udp.beginPacket(_remoteIP, DATA_PORT);
+		_Udp.write(&_DataSendBuffer[0], _curBufferSize);
+		_Udp.endPacket();
 		_curBufferSize = 0;
 		return true;
 	}
@@ -253,7 +247,6 @@ void NetworkManager::CheckUDPResponse()
 	
 	while (_Udp.parsePacket())
 	{
-		Serial.println(".");
 		String response = _Udp.readString();
 		if (response.equals(_udpSendBuffer))
 		{
