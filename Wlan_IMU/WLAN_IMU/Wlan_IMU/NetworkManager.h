@@ -12,7 +12,6 @@ namespace NetData
 		float rotation[3];
 		float acceleration[3];
 	};
-
 }
 
 class NetworkManager
@@ -47,7 +46,7 @@ private:
 	IPAddress _localIP;
 	IPAddress _remoteIP;
 
-
+	std::function<void()> _magCallback;
 
 	//UDP
 	WiFiUDP _Udp;
@@ -65,13 +64,14 @@ private:
 	void handleRoot();
 	void handleLogin();
 	void handleNotFound();
-public:
+public:	
 	NetworkManager();
 	~NetworkManager();
 
 	void Begin();
 	void Update();
 
+	void SetCallbackOnMagCalibration(std::function<void()> fcn);
 
 	//Add data to buffer; send if buffer is full
 	bool WriteData(const NetData::IMUData &data);

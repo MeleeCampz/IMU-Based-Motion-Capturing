@@ -22,7 +22,6 @@ const int m_intPin = D3;
 //Setup for the Accelerometer
 ///////////////////////////////////////////////////////////////////
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
-#define calibrateMagnetometer false  //Setting requires requires you to move device in figure 8 pattern when prompted over serial port.  Typically, you do this once, then manually provide the calibration values moving forward.
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, orientResult;
@@ -32,7 +31,7 @@ NetworkManager networkManager;
 DisplayHelper display;
 const bool useDisplay = true;
 
-void setupMPU()
+void setupMPU(bool calibMag)
 {
 	//Init MPU
 	mpu.begin(SDA, SCL, m_intPin);
@@ -52,10 +51,12 @@ void setupMPU()
 	mpu.selfTest();
 	mpu.calibrate();
 	mpu.init();
-	if (calibrateMagnetometer)
-	{
+	if (calibMag)
+	{	
+		digitalWrite(LED_BUILTIN, LOW);
 		mpu.magCalibrate();
 		ConfigManager::SaveMagnetCalibration(mpu.magBias[0], mpu.magBias[1], mpu.magBias[2]);
+		digitalWrite(LED_BUILTIN, HIGH);
 	}
 	else
 	{
@@ -71,6 +72,13 @@ void setupMPU()
 	}
 }
 
+void MagCalibCallback()
+{
+	ConfigManager::Begin();
+	setupMPU(true);
+	ConfigManager::End();
+}
+
 void setup()
 {
 	pinMode(LED_BUILTIN, OUTPUT);
@@ -82,10 +90,12 @@ void setup()
 		display.BeginDisplay();
 
 	ConfigManager::Begin();
-	setupMPU();
+	setupMPU(false);
 	ConfigManager::End();
 
 	networkManager.Begin();
+
+	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
 }
 
 uint32_t lastUpdate = 0;

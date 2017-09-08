@@ -52,6 +52,7 @@ void NetworkManager::Update()
 		}
 		break;
 	case NetworkManager::CONNECTED_TO_HOST:
+		CheckUDPResponse();
 		//if (!_Tcp.connected())
 		//{
 		//	_Tcp.connect(_remoteIP, TCP_PORT);
@@ -59,6 +60,11 @@ void NetworkManager::Update()
 	default:
 		break;
 	}
+}
+
+void NetworkManager::SetCallbackOnMagCalibration(std::function<void()> fcn)
+{
+	_magCallback = fcn;
 }
 
 void NetworkManager::BeginWebConfig()
@@ -253,6 +259,18 @@ void NetworkManager::CheckUDPResponse()
 			_curState = NetworkManager::CONNECTED_TO_HOST;
 			_remoteIP = _Udp.remoteIP();
 			Serial.println("Received broadcast package!");
+		}
+		else if (response.equals("MagCalib"))
+		{
+			Serial.println("Received MagCalib Request!");
+			if (_magCallback)
+			{
+				_magCallback();
+			}
+		}
+		else
+		{
+			Serial.println(response);
 		}
 	}
 }
