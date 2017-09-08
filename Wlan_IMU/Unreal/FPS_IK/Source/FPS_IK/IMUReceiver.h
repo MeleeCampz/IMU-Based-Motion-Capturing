@@ -27,6 +27,8 @@ private:
 	int32 _BroadcastReceiveBufferSize = 48; //in bytes
 	static const int32 BROADCAST_PORT = 6678;
 
+	TArray<TSharedRef<FInternetAddr>> _clients;
+
 public:	
 	// Sets default values for this component's properties
 	UIMUReceiver();
@@ -34,6 +36,12 @@ public:
 
 	void RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
 	void RecvData(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
+
+	UFUNCTION(BlueprintCallable)
+		void SendCalibrateRequest();
+
+	UFUNCTION(BlueprintCallable)
+		int32 GetNumClients();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator DebugRotation;
