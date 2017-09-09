@@ -9,14 +9,28 @@
 #include "Components/ActorComponent.h"
 #include "IMUReceiver.generated.h"
 
-const int32 MAX_CONNECTIONS = 24;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnClientUpdate);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FPS_IK_API UIMUReceiver : public UActorComponent
 {
 	GENERATED_BODY()
 private:
-	
+	struct IMUClient
+	{
+		FString adr;
+		int32 ID;
+		
+		IMUClient(FString address, int32 id)
+			: adr(address), ID(id)
+		{}
+
+		IMUClient()
+			:adr("INVALID"), ID(-1)
+		{}
+	};
+
+
 	FSocket* _DataReceiveSocket;
 	FUdpSocketReceiver* _DataReceiver = nullptr;
 	int32 _DataReceiveBufferSize = 24; //in bytes
@@ -27,7 +41,11 @@ private:
 	int32 _BroadcastReceiveBufferSize = 48; //in bytes
 	static const int32 BROADCAST_PORT = 6678;
 
-	TArray<TSharedRef<FInternetAddr>> _clients;
+	TArray<IMUClient> _clients;
+
+	TQueue<IMUClient> _clientsToAdd;
+
+	TSharedRef<FInternetAddr> CreateAddr(FString addr, int32 port);
 
 public:	
 	// Sets default values for this component's properties
@@ -38,10 +56,19 @@ public:
 	void RecvData(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
 
 	UFUNCTION(BlueprintCallable)
-		void SendCalibrateRequest();
+		void SendCalibrateRequest(FString ipAddress);
+
+	UFUNCTION(BlueprintCallable)
+		void SendIDRequest(FString ipAddress, int32 ID);
 
 	UFUNCTION(BlueprintCallable)
 		int32 GetNumClients();
+
+	UFUNCTION(BlueprintCallable)
+		void GetClientInfo(TArray<FString>& names, TArray<int32>& ids);
+
+	UPROPERTY(BlueprintAssignable)
+		FOnClientUpdate OnClientUpdate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator DebugRotation;

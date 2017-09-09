@@ -95,7 +95,49 @@ void UIMUReceiver::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	bool updated = false;;
+	while (!_clientsToAdd.IsEmpty())
+	{
+		IMUClient client;
+		_clientsToAdd.Dequeue(client);
+
+		bool contains = false;
+		for (int i = 0; i < _clients.Num(); i++)
+		{
+			if (_clients[i].adr == client.adr)
+			{
+				contains = true;
+				if (_clients[i].ID != client.ID)
+				{
+					_clients[i].ID = client.ID;
+					updated = true;
+				}
+				break;
+			}
+		}
+
+		if (!contains)
+		{
+			_clients.Add(client);
+			updated = true;
+		}
+	}
+
+	if (updated)
+	{
+		OnClientUpdate.Broadcast();
+	}
 }
+
+TSharedRef<FInternetAddr> UIMUReceiver::CreateAddr(FString addr, int32 port)
+{
+	TSharedRef<FInternetAddr> RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	RemoteAddr.Get().SetPort(port);
+	bool valid;
+	RemoteAddr.Get().SetIp(*addr, valid);
+	return RemoteAddr;
+}
+
 
 float UIMUReceiver::unpackFloat(const uint8_t *buffer)
 {
@@ -119,32 +161,28 @@ int16_t UIMUReceiver::unpackInt16(const uint8_t * buffer)
 void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {
 	int32 dataSize = ArrayReaderPtr->Num();
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesRead: %i"), dataSize));
-	}
-
 	int32 bytesSent;
+	//Send data right back
 	_BroadcastSocket->SendTo(ArrayReaderPtr->GetData(), dataSize, bytesSent, EndPt.ToInternetAddr().Get());
+
+	char stringData[1024];
+	memcpy(stringData, ArrayReaderPtr->GetData(), dataSize);
+	stringData[dataSize < 1024 ? dataSize : 1023] = 0; //Null terminator 
+	FString message = ANSI_TO_TCHAR(stringData);
+
 	if (GEngine)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("bytesSent: %i"), bytesSent));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Message: %s"), *message));
 	}
 
-	bool found = false;
-	for (int i = 0; i < _clients.Num(); i++)
+	int id = -1;
+	FString leftSide, rightSide;
+	if (message.Split("ID:", &leftSide, &rightSide))
 	{
-		if (_clients[i].Get() == EndPt.ToInternetAddr().Get())
-		{
-			found = true;
-			break;
-		}
+		id = FCString::Atoi(*rightSide);
 	}
 
-	if (!found)
-	{
-		_clients.AddUnique(EndPt.ToInternetAddr());
-	}
+	_clientsToAdd.Enqueue(IMUClient(EndPt.ToInternetAddr().Get().ToString(false), id));
 }
 
 void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4Endpoint & EndPt)
@@ -166,24 +204,43 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 	}
 }
 
-void UIMUReceiver::SendCalibrateRequest()
+void UIMUReceiver::SendCalibrateRequest(FString ipAddress)
 {
 	const uint8* req = (const uint8*)"MagCalib"; //TODO: Move this somewhere else
 	int32 bytesSent;
-
-	TSharedRef<FInternetAddr> RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-
-	for (int i = 0; i < _clients.Num(); i++)
+	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
+	_BroadcastSocket->SendTo(req, 9, bytesSent, RemoteAddr.Get());
+	if (GEngine)
 	{
-		_BroadcastSocket->SendTo(req, 9, bytesSent, _clients[i].Get());
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *_clients[i].Get().ToString(true)));
-		}
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
 	}
 }
 
 int32 UIMUReceiver::GetNumClients()
 {
 	return _clients.Num();
+}
+
+void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids)
+{
+	for (int i = 0; i < _clients.Num(); i++)
+	{
+		names.Add(_clients[i].adr);
+		ids.Add(_clients[i].ID);
+	}
+}
+
+void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
+{
+	FString message = "ID:" + FString::FromInt(ID);
+	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
+	int32 bytesSent;
+	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
+	int32 stringLen = message.Len() + 1;
+	
+	_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
+	}
 }

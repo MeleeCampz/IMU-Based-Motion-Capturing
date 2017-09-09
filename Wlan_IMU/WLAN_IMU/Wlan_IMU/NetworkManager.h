@@ -55,6 +55,7 @@ private:
 	//Server
 	ESP8266WebServer _webServer;
 
+	void InitSendBuffer();
 	void CheckUDPResponse();
 	void SendUDPBroadcast();
 	//If ssid is not specified (empty string) mcu tries to connect to last network
