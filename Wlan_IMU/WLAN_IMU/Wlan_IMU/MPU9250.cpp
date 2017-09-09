@@ -103,9 +103,9 @@ void MPU9250::readAccelData(IMUResult * destination)
 
 
 	destination->setResult(
-		(float)count[0] * this->getAres(),// - this->accelBias[0]*this->getAres(),
-		(float)count[1] * this->getAres(),// - this->accelBias[1]*this->getAres(),
-		(float)count[2] * this->getAres()// - this->accelBias[2]*this->getAres()
+		(float)count[0] * this->getAres() - this->accelBias[0]*this->getAres(),
+		(float)count[1] * this->getAres() - this->accelBias[1]*this->getAres(),
+		(float)count[2] * this->getAres() -this->accelBias[2] * this->getAres()
 	);
 }
 
@@ -451,30 +451,30 @@ void MPU9250::calibrate()
 		if ((accel_bias_reg[ii] & mask)) mask_bit[ii] = 0x01; // If temperature compensation bit is set, record that fact in mask_bit
 	}
 
-	// Construct total accelerometer bias, including calculated average accelerometer bias from above
-	accel_bias_reg[0] -= (accel_bias[0] / 8); // Subtract calculated averaged accelerometer bias scaled to 2048 LSB/g (16 g full scale)
-	accel_bias_reg[1] -= (accel_bias[1] / 8);
-	accel_bias_reg[2] -= (accel_bias[2] / 8);
+	//// Construct total accelerometer bias, including calculated average accelerometer bias from above
+	//accel_bias_reg[0] -= (accel_bias[0] / 8); // Subtract calculated averaged accelerometer bias scaled to 2048 LSB/g (16 g full scale)
+	//accel_bias_reg[1] -= (accel_bias[1] / 8);
+	//accel_bias_reg[2] -= (accel_bias[2] / 8);
 
-	data[0] = (accel_bias_reg[0] >> 8) & 0xFF;
-	data[1] = (accel_bias_reg[0]) & 0xFF;
-	data[1] = data[1] | mask_bit[0]; // preserve temperature compensation bit when writing back to accelerometer bias registers
-	data[2] = (accel_bias_reg[1] >> 8) & 0xFF;
-	data[3] = (accel_bias_reg[1]) & 0xFF;
-	data[3] = data[3] | mask_bit[1]; // preserve temperature compensation bit when writing back to accelerometer bias registers
-	data[4] = (accel_bias_reg[2] >> 8) & 0xFF;
-	data[5] = (accel_bias_reg[2]) & 0xFF;
-	data[5] = data[5] | mask_bit[2]; // preserve temperature compensation bit when writing back to accelerometer bias registers
+	//data[0] = (accel_bias_reg[0] >> 8) & 0xFF;
+	//data[1] = (accel_bias_reg[0]) & 0xFF;
+	//data[1] = data[1] | mask_bit[0]; // preserve temperature compensation bit when writing back to accelerometer bias registers
+	//data[2] = (accel_bias_reg[1] >> 8) & 0xFF;
+	//data[3] = (accel_bias_reg[1]) & 0xFF;
+	//data[3] = data[3] | mask_bit[1]; // preserve temperature compensation bit when writing back to accelerometer bias registers
+	//data[4] = (accel_bias_reg[2] >> 8) & 0xFF;
+	//data[5] = (accel_bias_reg[2]) & 0xFF;
+	//data[5] = data[5] | mask_bit[2]; // preserve temperature compensation bit when writing back to accelerometer bias registers
 
   // Apparently this is not working for the acceleration biases in the MPU-9250
   // Are we handling the temperature correction bit properly?
   // Push accelerometer biases to hardware registers
-	writeByte(MPU9250_ADDRESS, XA_OFFSET_H, data[0]);
-	writeByte(MPU9250_ADDRESS, XA_OFFSET_L, data[1]);
-	writeByte(MPU9250_ADDRESS, YA_OFFSET_H, data[2]);
-	writeByte(MPU9250_ADDRESS, YA_OFFSET_L, data[3]);
-	writeByte(MPU9250_ADDRESS, ZA_OFFSET_H, data[4]);
-	writeByte(MPU9250_ADDRESS, ZA_OFFSET_L, data[5]);
+	//writeByte(MPU9250_ADDRESS, XA_OFFSET_H, data[0]);
+	//writeByte(MPU9250_ADDRESS, XA_OFFSET_L, data[1]);
+	//writeByte(MPU9250_ADDRESS, YA_OFFSET_H, data[2]);
+	//writeByte(MPU9250_ADDRESS, YA_OFFSET_L, data[3]);
+	//writeByte(MPU9250_ADDRESS, ZA_OFFSET_H, data[4]);
+	//writeByte(MPU9250_ADDRESS, ZA_OFFSET_L, data[5]);
 
 	// Output scaled accelerometer biases for display in the main program
 	this->accelBias[0] = (float)accel_bias[0] / (float)accelsensitivity;
