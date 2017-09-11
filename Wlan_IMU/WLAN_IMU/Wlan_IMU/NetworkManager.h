@@ -10,7 +10,7 @@ namespace NetData
 	struct IMUData
 	{
 		uint32_t timeStampt;
-		float rotation[3];
+		float rotation[4];
 		float velocity[3];
 		int16_t ID; //Put ID as the last pos to avoid padding
 	};

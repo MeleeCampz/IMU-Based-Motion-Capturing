@@ -222,7 +222,7 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 	int32 dataSize = ArrayReaderPtr->Num();
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::Printf(TEXT("bytesRead: %i"), dataSize));
 
-	if (dataSize >= 28)
+	if (dataSize == sizeof(IMUNetData))
 	{
 		IMUNetData packet;
 
@@ -231,25 +231,15 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 		packet.rotation[0] = unpack_float(&ArrayReaderPtr->GetData()[4]);
 		packet.rotation[1] = unpack_float(&ArrayReaderPtr->GetData()[8]);
 		packet.rotation[2] = unpack_float(&ArrayReaderPtr->GetData()[12]);
+		packet.rotation[3] = unpack_float(&ArrayReaderPtr->GetData()[16]);
 
-		packet.velocity[0] = unpack_float(&ArrayReaderPtr->GetData()[16]);
-		packet.velocity[1] = unpack_float(&ArrayReaderPtr->GetData()[20]);
-		packet.velocity[2] = unpack_float(&ArrayReaderPtr->GetData()[24]);
+		packet.velocity[0] = unpack_float(&ArrayReaderPtr->GetData()[20]);
+		packet.velocity[1] = unpack_float(&ArrayReaderPtr->GetData()[24]);
+		packet.velocity[2] = unpack_float(&ArrayReaderPtr->GetData()[28]);
 
-		packet.ID = unpack_int16(&ArrayReaderPtr->GetData()[28]);
+		packet.ID = unpack_int16(&ArrayReaderPtr->GetData()[32]);
 
 		_receivedPacketsQueue.Enqueue(packet);
-
-		//DebugRotation.Yaw = r1;
-		//DebugRotation.Pitch = r2;
-		//DebugRotation.Roll = r3;
-
-		//DebugVelocity.X = v1;
-		//DebugVelocity.Y = v2;
-		//DebugVelocity.Z = v3;
-
-
-		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Rotation: %f, %f, %f"), r1, r2, r3));
 	}
 }
 
@@ -296,6 +286,7 @@ void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids)
 
 void UIMUReceiver::StartDataCapture()
 {
+	_writeArchive.FlushCache();
 	_writeArchive.Empty();
 	_bCapture = true;
 }
@@ -348,9 +339,12 @@ bool UIMUReceiver::GetRotation(int ID, FRotator& out)
 	{
 		return false;
 	}
-	out.Pitch = data->rotation[0];
-	out.Roll = data->rotation[1];
-	out.Yaw = data->rotation[2];
+
+
+	FQuat rot(- data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
+	out = rot.Rotator();
+
+	//out.Clamp();
 
 	return true;
 }

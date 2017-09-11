@@ -34,7 +34,7 @@ private:
 	struct IMUNetData
 	{
 		uint32_t timeStamp; //in microseconds
-		float rotation[3];
+		float rotation[4];
 		float velocity[3]; // Unit is G*s 
 		int16_t ID; //put id last, to optimize padding, could be a int32 as well, as there is 2byte padding atm
 	};

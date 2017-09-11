@@ -24,7 +24,7 @@ const int m_intPin = D3;
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
 
 MPU9250 mpu;
-IMUResult magResult, accResult, gyroResult, orientResult, velResult;
+IMUResult magResult, accResult, gyroResult, velResult;
 NetworkManager networkManager;
 NetData::IMUData netData;
 
@@ -133,7 +133,7 @@ void loop()
 	{
 		lastSample = micros();
 
-		readOrientation(&orientResult, declination);
+		//readOrientation(&orientResult, declination);
 		readVelocity(&velResult);
 
 		//Serial.print("X: ");
@@ -162,9 +162,10 @@ void loop()
 
 		netData.timeStampt = lastSample;
 		
-		netData.rotation[0] = orientResult.getXComponent();
-		netData.rotation[1] = orientResult.getYComponent();
-		netData.rotation[2] = orientResult.getZComponent();
+		netData.rotation[0] = getQ()[0];
+		netData.rotation[1] = getQ()[1];
+		netData.rotation[2] = getQ()[2];
+		netData.rotation[3] = getQ()[3];
 
 		netData.velocity[0] = velResult.getXComponent();
 		netData.velocity[1] = velResult.getYComponent();
