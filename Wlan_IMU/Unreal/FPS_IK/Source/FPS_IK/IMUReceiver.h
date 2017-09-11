@@ -6,6 +6,7 @@
 #include "Sockets.h"
 #include "CoreMinimal.h"
 #include "UdpSocketReceiver.h"
+#include "BufferArchive.h"
 #include "Components/ActorComponent.h"
 #include "IMUReceiver.generated.h"
 
@@ -30,10 +31,17 @@ private:
 		{}
 	};
 
+	struct IMUNetData
+	{
+		uint32_t timeStamp; //in microseconds
+		float rotation[3];
+		float velocity[3]; // Unit is G*s 
+		int16_t ID; //put id last, to optimize padding, could be a int32 as well, as there is 2byte padding atm
+	};
 
 	FSocket* _DataReceiveSocket;
 	FUdpSocketReceiver* _DataReceiver = nullptr;
-	int32 _DataReceiveBufferSize = 24; //in bytes
+	int32 _DataReceiveBufferSize = sizeof(IMUNetData); //in bytes
 	static const int32 DATA_PORT = 6676;
 	
 	FSocket* _BroadcastSocket;
@@ -41,11 +49,21 @@ private:
 	int32 _BroadcastReceiveBufferSize = 48; //in bytes
 	static const int32 BROADCAST_PORT = 6678;
 
-	TArray<IMUClient> _clients;
+	TQueue<IMUNetData> _receivedPacketsQueue;
 
+	TArray<IMUClient> _clients;
 	TQueue<IMUClient> _clientsToAdd;
 
+	FBufferArchive _writeArchive;
+
+	TMap<int32_t, IMUNetData> _IMUData;
+
+	FString _filePath;
+	bool _bCapture = false;
+
 	TSharedRef<FInternetAddr> CreateAddr(FString addr, int32 port);
+	//Saves or load data - depending on operator overload of "<<"
+	void SaveLoadPacket(FArchive& ar, IMUNetData& data);
 
 public:	
 	// Sets default values for this component's properties
@@ -67,11 +85,20 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void GetClientInfo(TArray<FString>& names, TArray<int32>& ids);
 
+	UFUNCTION(BlueprintCallable)
+		void StartDataCapture();
+
+	UFUNCTION(BlueprintCallable)
+		bool StopDataCapture(FString FilePath);
+
+	UFUNCTION(BlueprintCallable)
+		void Load(FString FilePath);
+
+	UFUNCTION(BlueprintCallable)
+		bool GetRotation(int ID, FRotator& out);
+
 	UPROPERTY(BlueprintAssignable)
 		FOnClientUpdate OnClientUpdate;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FRotator DebugRotation;
 
 protected:
 	// Called when the game starts
@@ -97,6 +124,7 @@ protected:
 		return dest.u;
 	};
 
-	float unpackFloat(const uint8_t *buffer);
-	int16_t unpackInt16(const uint8_t *buffer);
+	float unpack_float(const uint8_t *buffer);
+	int16_t unpack_int16(const uint8_t *buffer);
+	uint32_t unpack_uint32(const uint8_t *buffer);
 };

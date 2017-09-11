@@ -2,6 +2,7 @@
 
 #include "IMUReceiver.h"
 #include "UdpSocketBuilder.h"
+#include "FileManager.h"
 #include "Engine.h"
 
 #define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
@@ -127,6 +128,17 @@ void UIMUReceiver::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 	{
 		OnClientUpdate.Broadcast();
 	}
+
+	while (!_receivedPacketsQueue.IsEmpty())
+	{
+		IMUNetData data;
+		_receivedPacketsQueue.Dequeue(data);
+		if (_bCapture)
+		{
+			SaveLoadPacket(_writeArchive, data);
+		}
+		_IMUData.Add(data.ID, data);
+	}
 }
 
 TSharedRef<FInternetAddr> UIMUReceiver::CreateAddr(FString addr, int32 port)
@@ -138,8 +150,19 @@ TSharedRef<FInternetAddr> UIMUReceiver::CreateAddr(FString addr, int32 port)
 	return RemoteAddr;
 }
 
+void UIMUReceiver::SaveLoadPacket(FArchive& ar, IMUNetData& data)
+{
+	ar << data.timeStamp;
+	ar << data.rotation[0];
+	ar << data.rotation[1];
+	ar << data.rotation[2];
+	ar << data.velocity[0];
+	ar << data.velocity[1];
+	ar << data.velocity[2];
+	ar << data.ID;
+}
 
-float UIMUReceiver::unpackFloat(const uint8_t *buffer)
+float UIMUReceiver::unpack_float(const uint8_t *buffer)
 {
 	float f;
 	uint8_t b[] = { buffer[3], buffer[2], buffer[1], buffer[0] };
@@ -149,13 +172,22 @@ float UIMUReceiver::unpackFloat(const uint8_t *buffer)
 	return swap_endian(f);
 }
 
-int16_t UIMUReceiver::unpackInt16(const uint8_t * buffer)
+int16_t UIMUReceiver::unpack_int16(const uint8_t * buffer)
 {
 	int16_t ret;
 	uint8_t b[] = { buffer[1], buffer[0] };
 	memcpy(&ret, &b, sizeof(int16_t));
 
-	return ret;
+	return swap_endian(ret);
+}
+
+uint32_t UIMUReceiver::unpack_uint32(const uint8_t * buffer)
+{
+	uint32_t ret;
+	uint8_t b[] = { buffer[3], buffer[2], buffer[1], buffer[0] };
+	memcpy(&ret, &b, sizeof(uint32_t));
+
+	return swap_endian(ret);
 }
 
 void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
@@ -190,15 +222,32 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 	int32 dataSize = ArrayReaderPtr->Num();
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::Printf(TEXT("bytesRead: %i"), dataSize));
 
-	if (dataSize >= 12)
+	if (dataSize >= 28)
 	{
-		float r1 = unpackFloat(&ArrayReaderPtr->GetData()[0]);
-		float r2 = unpackFloat(&ArrayReaderPtr->GetData()[4]);
-		float r3 = unpackFloat(&ArrayReaderPtr->GetData()[8]);
+		IMUNetData packet;
 
-		DebugRotation.Yaw = r1;
-		DebugRotation.Pitch = r2;
-		DebugRotation.Roll = r3;
+		packet.timeStamp = unpack_uint32(&ArrayReaderPtr->GetData()[0]);
+
+		packet.rotation[0] = unpack_float(&ArrayReaderPtr->GetData()[4]);
+		packet.rotation[1] = unpack_float(&ArrayReaderPtr->GetData()[8]);
+		packet.rotation[2] = unpack_float(&ArrayReaderPtr->GetData()[12]);
+
+		packet.velocity[0] = unpack_float(&ArrayReaderPtr->GetData()[16]);
+		packet.velocity[1] = unpack_float(&ArrayReaderPtr->GetData()[20]);
+		packet.velocity[2] = unpack_float(&ArrayReaderPtr->GetData()[24]);
+
+		packet.ID = unpack_int16(&ArrayReaderPtr->GetData()[28]);
+
+		_receivedPacketsQueue.Enqueue(packet);
+
+		//DebugRotation.Yaw = r1;
+		//DebugRotation.Pitch = r2;
+		//DebugRotation.Roll = r3;
+
+		//DebugVelocity.X = v1;
+		//DebugVelocity.Y = v2;
+		//DebugVelocity.Z = v3;
+
 
 		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("Rotation: %f, %f, %f"), r1, r2, r3));
 	}
@@ -210,6 +259,21 @@ void UIMUReceiver::SendCalibrateRequest(FString ipAddress)
 	int32 bytesSent;
 	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
 	_BroadcastSocket->SendTo(req, 9, bytesSent, RemoteAddr.Get());
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
+	}
+}
+
+void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
+{
+	FString message = "ID:" + FString::FromInt(ID);
+	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
+	int32 bytesSent;
+	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
+	int32 stringLen = message.Len() + 1;
+
+	_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
@@ -230,17 +294,63 @@ void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids)
 	}
 }
 
-void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
+void UIMUReceiver::StartDataCapture()
 {
-	FString message = "ID:" + FString::FromInt(ID);
-	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
-	int32 bytesSent;
-	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
-	int32 stringLen = message.Len() + 1;
-	
-	_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
-	if (GEngine)
+	_writeArchive.Empty();
+	_bCapture = true;
+}
+
+bool UIMUReceiver::StopDataCapture(FString dataPath)
+{
+	_bCapture = false;
+
+	if (FFileHelper::SaveArrayToFile(_writeArchive, *dataPath))
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
+		_writeArchive.FlushCache();
+		_writeArchive.Empty();
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("File saved! - Data cleard"));
+		return true;
 	}
+	else
+	{
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to save file"));
+		return false;
+	}
+}
+
+void UIMUReceiver::Load(FString FilePath)
+{
+	TArray<uint8> binary;
+	if (!FFileHelper::LoadFileToArray(binary, *FilePath))
+	{
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Failed to load file"));
+	}
+
+	FMemoryReader reader = FMemoryReader(binary, true);
+	reader.Seek(0);
+
+	TArray<IMUNetData> data;
+	while (reader.Tell() < reader.TotalSize())
+	{
+		IMUNetData packet;
+		SaveLoadPacket(reader, packet);
+		data.Add(packet);
+	}
+}
+
+bool UIMUReceiver::GetRotation(int ID, FRotator& out)
+{
+	IMUNetData * data = _IMUData.Find(ID);
+	if (!data)
+	{
+		return false;
+	}
+	out.Pitch = data->rotation[0];
+	out.Roll = data->rotation[1];
+	out.Yaw = data->rotation[2];
+
+	return true;
 }
