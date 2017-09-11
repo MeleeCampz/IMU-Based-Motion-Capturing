@@ -9,8 +9,10 @@ namespace NetData
 {
 	struct IMUData
 	{
+		uint32_t timeStampt;
 		float rotation[3];
-		float acceleration[3];
+		float velocity[3];
+		int16_t ID; //Put ID as the last pos to avoid padding
 	};
 }
 
@@ -26,16 +28,17 @@ private:
 
 	NetworkState _curState;
 	
+	//Broadcast
 	static const int UDP_PACKET_SIZE = 48;
 	char _udpSendBuffer[UDP_PACKET_SIZE];
 	static const uint16_t BROADCAST_PORT = 6678;
 	static const uint16_t BROADCAST_DELAY_MS = 1000;
 
-	//TCP
-	//WiFiClient _Tcp;
+	//UDP pata stuff
 	static const uint16_t DATA_PORT = 6676;
-	static const int MAX_BYTES_PER_PACKAGE = 48;
+	static const int MAX_BYTES_PER_PACKAGE = sizeof(NetData::IMUData);
 	char _DataSendBuffer[MAX_BYTES_PER_PACKAGE];
+	int16_t _ID;
 	size_t _curBufferSize;
 
 	bool _ledToggle = false;
@@ -74,8 +77,8 @@ public:
 
 	void SetCallbackOnMagCalibration(std::function<void()> fcn);
 
-	//Add data to buffer; send if buffer is full
-	bool WriteData(const NetData::IMUData &data);
+	//Add data to buffer (and add id); send if buffer is full
+	bool WriteData(NetData::IMUData &data);
 	//Forces to send data, even if buffer isn't full yet
 	bool Flush();
 };

@@ -3,7 +3,7 @@
 
 
 NetworkManager::NetworkManager()
-	: _webServer(80), _curState(WAITING_FOR_CREDENTIALS), _curBufferSize(0)
+	: _webServer(80), _curState(WAITING_FOR_CREDENTIALS), _curBufferSize(0), _ID(-1)
 {
 }
 
@@ -15,6 +15,11 @@ void NetworkManager::Begin()
 {
 	//Setup udp
 	_Udp.begin(BROADCAST_PORT);
+	
+	ConfigManager::Begin();
+	_ID = ConfigManager::LoadID();
+	ConfigManager::End();
+
 	InitSendBuffer();
 
 	//Try to reconnect
@@ -179,12 +184,16 @@ void NetworkManager::handleNotFound()
 	_webServer.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
 
-bool NetworkManager::WriteData(const NetData::IMUData &data)
+bool NetworkManager::WriteData(NetData::IMUData &data)
 {
-	if (sizeof(data) + _curBufferSize > MAX_BYTES_PER_PACKAGE * sizeof(char))
-	{
-		Flush();
-	}
+	if (_curState != CONNECTED_TO_HOST)
+		return false;
+	
+	//if (sizeof(data) + _curBufferSize > MAX_BYTES_PER_PACKAGE * sizeof(char))
+	//{
+	//	Flush();
+	//}
+	data.ID = _ID;
 	memcpy(_DataSendBuffer + _curBufferSize, &data, sizeof(data));
 	_curBufferSize += sizeof(data);
 	Flush();
@@ -259,19 +268,16 @@ void NetworkManager::SendUDPBroadcast()
 
 void NetworkManager::InitSendBuffer()
 {
-	ConfigManager::Begin();
-	int16_t id = ConfigManager::LoadID();
 	String message;
-	if (id == -1)
+	if (_ID == -1)
 	{
 		message = "ESP8266_" + WiFi.macAddress();
 	}
 	else
 	{
-		message = "ESP8266B_ID:" +  String(id);
+		message = "ESP8266B_ID:" +  String(_ID);
 	}
 	strcpy(_udpSendBuffer, message.c_str());
-	ConfigManager::End();
 }
 
 void NetworkManager::CheckUDPResponse()
@@ -300,6 +306,7 @@ void NetworkManager::CheckUDPResponse()
 			int ID = atoi(rightSide.c_str());
 
 			ConfigManager::Begin();
+			_ID = ID;
 			ConfigManager::SaveID(ID);
 			ConfigManager::End();
 			digitalWrite(LED_BUILTIN, LOW);

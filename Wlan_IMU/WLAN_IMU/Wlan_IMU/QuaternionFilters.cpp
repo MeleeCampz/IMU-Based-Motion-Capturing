@@ -16,6 +16,8 @@
 #define Kp 2.0f * 5.0f
 #define Ki 0.0f
 
+#define GRAV 9.81f
+
 static float GyroMeasError = PI * (40.0f / 180.0f);
 // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
 static float GyroMeasDrift = PI * (0.0f / 180.0f);
@@ -41,6 +43,8 @@ static float zeta = sqrt(3.0f / 4.0f) * GyroMeasDrift;
 static float eInt[3] = { 0.0f, 0.0f, 0.0f };
 // Vector to hold quaternion
 static float q[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+// Vector to hold displacement
+static float velocity[3] = { 0.f,0.f,0.f };
 
 void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, float deltat)
 {
@@ -59,9 +63,9 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	float gz = PI / 180.0f * res[2];
 
 	mag->getResult(res);
-	float mx = res[0];
-	float my = res[1];
-	float mz = res[2];
+	float mx = res[1];
+	float my = res[0];
+	float mz = -res[2];
 
 	// short name local variable for readability
 	float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];
@@ -173,9 +177,9 @@ void MahonyQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, 
 	float gz = PI / 180.0f * res[2];
 
 	mag->getResult(res);
-	float mx =	res[1];
-	float my =  res[0];
-	float mz =  - res[2];
+	float mx = res[1];
+	float my = res[0];
+	float mz = -res[2];
 
 
 	// short name local variable for readability
@@ -274,7 +278,7 @@ const float * getQ() { return q; }
 // Declination of SparkFun Electronics (40°05'26.6"N 105°11'05.9"W) is
 //   8° 30' E  ± 0° 21' (or 8.5°) on 2016-07-19
 // - http://www.ngdc.noaa.gov/geomag-web/#declination
-void readOrientation(IMUResult *orien, float declination)
+void readOrientation(IMUResult *orien, float dec)
 {
 
 	float yaw, pitch, roll;
@@ -290,8 +294,36 @@ void readOrientation(IMUResult *orien, float declination)
 	pitch *= RAD_TO_DEG;
 	yaw *= RAD_TO_DEG;
 
-	yaw -= declination;
+	yaw -= dec;
 	roll *= RAD_TO_DEG;
 
 	orien->setResult(yaw, pitch, roll);
 }
+
+void IntegrateVelocity(IMUResult* acc, float deltaTime)
+{
+	float res[3];
+	acc->getResult(res);
+
+	float ax = res[0];
+	float ay = res[1];
+	float az = res[2];
+
+	velocity[0] += ax * deltaTime;
+	velocity[1] += ay * deltaTime;
+	velocity[2] += az * deltaTime;
+}
+
+void ResetVelocity()
+{
+	velocity[0] = 0.f;
+	velocity[1] = 0.f;
+	velocity[2] = 0.f;
+}
+
+void readVelocity(IMUResult * vel)
+{
+	vel->setResult(velocity[0], velocity[1], velocity[2]);
+}
+
+const float * GetVelocity() { return velocity; }

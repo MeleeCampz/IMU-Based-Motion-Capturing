@@ -24,8 +24,9 @@ const int m_intPin = D3;
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
 
 MPU9250 mpu;
-IMUResult magResult, accResult, gyroResult, orientResult;
+IMUResult magResult, accResult, gyroResult, orientResult, velResult;
 NetworkManager networkManager;
+NetData::IMUData netData;
 
 //DisplayTest
 DisplayHelper display;
@@ -52,7 +53,7 @@ void setupMPU(bool calibMag)
 	mpu.calibrate();
 	mpu.init();
 	if (calibMag)
-	{	
+	{
 		digitalWrite(LED_BUILTIN, LOW);
 		mpu.magCalibrate();
 		ConfigManager::SaveMagnetCalibration(mpu.magBias[0], mpu.magBias[1], mpu.magBias[2]);
@@ -94,7 +95,6 @@ void setup()
 	ConfigManager::End();
 
 	networkManager.Begin();
-
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
 }
 
@@ -115,22 +115,34 @@ void loop()
 	// On interrupt, check if data ready interrupt
 	if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
 	{
+		float delta = (micros() - lastUpdate) / 1000000.f;
+		lastUpdate = micros();
+		if (TEST_SAMPLRATE)
+			lastDataCount++;
+		
 		mpu.readAccelData(&accResult);
 		mpu.readGyroData(&gyroResult);
 		mpu.readMagData(&magResult);
-		if (TEST_SAMPLRATE)
-			lastDataCount++;
-	}
 
-	float delta = (micros() - lastUpdate) / 1000000.f;
-	lastUpdate = micros();
-	MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
-	//MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+		//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+		MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+		IntegrateVelocity(&accResult, delta);
+	}
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
+		lastSample = micros();
 
 		readOrientation(&orientResult, declination);
+		readVelocity(&velResult);
+
+		//Serial.print("X: ");
+		//Serial.print(accResult.getXComponent());
+		//Serial.print("Y: ");
+		//Serial.print(accResult.getYComponent());
+		//Serial.print("Z: ");
+		//Serial.println(accResult.getZComponent());
+
 		//orientResult.printResult();
 
 		if (TEST_SAMPLRATE)
@@ -148,21 +160,20 @@ void loop()
 			}
 		}
 
+		netData.timeStampt = lastSample;
+		
+		netData.rotation[0] = orientResult.getXComponent();
+		netData.rotation[1] = orientResult.getYComponent();
+		netData.rotation[2] = orientResult.getZComponent();
 
-		NetData::IMUData data;
-		data.rotation[0] = orientResult.getXComponent();
-		data.rotation[1] = orientResult.getYComponent();
-		data.rotation[2] = orientResult.getZComponent();
+		netData.velocity[0] = velResult.getXComponent();
+		netData.velocity[1] = velResult.getYComponent();
+		netData.velocity[2] = velResult.getZComponent();
 
-		data.acceleration[0] = 111;
-		data.acceleration[1] = 222;
-		data.acceleration[2] = 333;
-
-		networkManager.WriteData(data);
+		networkManager.WriteData(netData);
 
 		if (TEST_SAMPLRATE)
 			lastDataCount = 0;
-
-		lastSample = micros();
+		ResetVelocity();
 	}
 }

@@ -9,4 +9,9 @@ void MahonyQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, 
 void readOrientation(IMUResult *orien, float dec);
 const float * getQ();
 
+void IntegrateVelocity(IMUResult* acc, float deltaTime);
+void ResetVelocity();
+void readVelocity(IMUResult* vel);
+const float* GetVelocity();
+
 #endif // _QUATERNIONFILTERS_H_
