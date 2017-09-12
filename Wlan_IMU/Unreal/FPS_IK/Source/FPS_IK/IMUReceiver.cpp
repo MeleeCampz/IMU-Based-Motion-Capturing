@@ -341,9 +341,12 @@ bool UIMUReceiver::GetRotation(int ID, FRotator& out)
 	}
 
 
-	FQuat rot(- data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
+	FQuat rot(-data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
+	//FQuat rot(data->rotation[3], data->rotation[2], -data->rotation[1], data->rotation[0]);
 	out = rot.Rotator();
 
+	out.Pitch = 180 - out.Pitch;
+	
 	//out.Clamp();
 
 	return true;
