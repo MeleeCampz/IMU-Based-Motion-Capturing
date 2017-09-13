@@ -39,6 +39,7 @@ private:
 	static const int MAX_BYTES_PER_PACKAGE = sizeof(NetData::IMUData);
 	char _DataSendBuffer[MAX_BYTES_PER_PACKAGE];
 	int16_t _ID;
+	int32_t _sampleRate;
 	size_t _curBufferSize;
 
 	bool _ledToggle = false;
@@ -50,6 +51,7 @@ private:
 	IPAddress _remoteIP;
 
 	std::function<void()> _magCallback;
+	std::function<void(int32_t samplRate)> _sampleRateCallback;
 
 	//UDP
 	WiFiUDP _Udp;
@@ -76,6 +78,7 @@ public:
 	void Update();
 
 	void SetCallbackOnMagCalibration(std::function<void()> fcn);
+	void SetCallbackOnNewSampleRate(std::function<void(int32_t rate)> fcn);
 
 	//Add data to buffer (and add id); send if buffer is full
 	bool WriteData(NetData::IMUData &data);

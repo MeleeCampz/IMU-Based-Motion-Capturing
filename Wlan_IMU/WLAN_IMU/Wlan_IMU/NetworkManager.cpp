@@ -18,6 +18,7 @@ void NetworkManager::Begin()
 	
 	ConfigManager::Begin();
 	_ID = ConfigManager::LoadID();
+	_sampleRate = ConfigManager::LoadSamplingRate();
 	ConfigManager::End();
 
 	InitSendBuffer();
@@ -74,6 +75,11 @@ void NetworkManager::Update()
 void NetworkManager::SetCallbackOnMagCalibration(std::function<void()> fcn)
 {
 	_magCallback = fcn;
+}
+
+void NetworkManager::SetCallbackOnNewSampleRate(std::function<void(int32_t rate)> fcn)
+{
+	_sampleRateCallback = fcn;
 }
 
 void NetworkManager::BeginWebConfig()
@@ -275,7 +281,7 @@ void NetworkManager::InitSendBuffer()
 	}
 	else
 	{
-		message = "ESP8266B_ID:" +  String(_ID);
+		message = "ESP8266B_ID:" +  String(_ID) + "_"+"Rate:" + String(_sampleRate);
 	}
 	strcpy(_udpSendBuffer, message.c_str());
 }
@@ -317,6 +323,21 @@ void NetworkManager::CheckUDPResponse()
 
 			Serial.print("New id: ");
 			Serial.println(ID);
+		}
+		else if (response.startsWith("SMPL_RATE:"))
+		{
+			String rightSide = response.substring(10);
+			int rate = atoi(rightSide.c_str());			
+			
+			if (_sampleRateCallback && rate >= 1000)
+			{
+				_sampleRateCallback(rate);
+				_sampleRate = rate;
+				InitSendBuffer();
+				_curState = NetworkManager::CONNECTED_TO_WIFI;
+				Serial.println("New rate:");
+				Serial.println(rate);
+			}
 		}
 		else
 		{

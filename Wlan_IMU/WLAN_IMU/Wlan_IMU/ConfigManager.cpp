@@ -5,6 +5,7 @@ const char* ConfigManager::KEY_ID = "ID";
 const char* ConfigManager::KEY_MAGNETCONFIG_1 = "MAG_CNFG_1";
 const char* ConfigManager::KEY_MAGNETCONFIG_2 = "MAG_CNFG_2";
 const char* ConfigManager::KEY_MAGNETCONFIG_3 = "MAG_CNFG_3";
+const char* ConfigManager::KEY_SAMPLING_RATE = "SMPL_RATE";
 
 void ConfigManager::Begin()
 {
@@ -16,6 +17,10 @@ void ConfigManager::End()
 	SPIFFS.end();
 }
 
+bool ConfigManager::SaveID(int16_t id)
+{
+	return WriteKeyValue(KEY_ID, id);
+}
 
 int16_t ConfigManager::LoadID() 
 {
@@ -42,7 +47,14 @@ bool ConfigManager::LoadMagnetCalibration(float & out_m1, float & out_m2, float 
 	return b1 && b2 && b3;
 }
 
-bool ConfigManager::SaveID(int16_t id)
+bool ConfigManager::SaveSamplingRate(int32_t rate)
 {
-	return WriteKeyValue(KEY_ID,id);
+	return WriteKeyValue(KEY_SAMPLING_RATE, rate);
+}
+
+int32_t ConfigManager::LoadSamplingRate()
+{
+	int32_t out = -1;
+	ReadKey(KEY_SAMPLING_RATE, out);
+	return out;
 }

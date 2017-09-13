@@ -11,17 +11,8 @@
 //Using default pin D2 for SDA
 //Using default pin D1 for SDA
 const int m_intPin = D3;
-
-
-///////////////////////////////////////////////////////////////////
-//Determines how often we sample data
-///////////////////////////////////////////////////////////////////
-#define samplingRateInMicros 33 * 1000
-
-///////////////////////////////////////////////////////////////////
-//Setup for the Accelerometer
-///////////////////////////////////////////////////////////////////
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
+#define TEST_SAMPLRATE false
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, velResult;
@@ -30,7 +21,9 @@ NetData::IMUData netData;
 
 //DisplayTest
 DisplayHelper display;
-const bool useDisplay = true;
+const bool useDisplay = false;
+
+float samplingRateInMicros = 33 * 1000;
 
 void setupMPU(bool calibMag)
 {
@@ -80,6 +73,14 @@ void MagCalibCallback()
 	ConfigManager::End();
 }
 
+void SampleRateCallback(int32_t newRate)
+{
+	samplingRateInMicros = newRate;
+	ConfigManager::Begin();
+	ConfigManager::SaveSamplingRate(samplingRateInMicros);
+	ConfigManager::End();
+}
+
 void setup()
 {
 	pinMode(LED_BUILTIN, OUTPUT);
@@ -92,17 +93,25 @@ void setup()
 
 	ConfigManager::Begin();
 	setupMPU(false);
+	int32_t rate = ConfigManager::LoadSamplingRate();
+	if (rate > 0)
+	{
+		samplingRateInMicros = rate;
+	}
+	else
+	{
+		ConfigManager::SaveSamplingRate(samplingRateInMicros);
+	}
 	ConfigManager::End();
 
 	networkManager.Begin();
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
+	networkManager.SetCallbackOnNewSampleRate(&SampleRateCallback);
 }
 
 uint32_t lastUpdate = 0;
 uint32_t lastSample = 0;
 uint32_t lastDataCount = 0;
-
-#define TEST_SAMPLRATE true
 
 char* sendBuffer = new char[12]; //3floats
 float r1, r2, r3;
@@ -147,16 +156,23 @@ void loop()
 
 		if (TEST_SAMPLRATE)
 		{
+			float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
 			if (useDisplay)
 			{
-				float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
-
-				display.ClearDisplay();
-				display.println("Sampling rate in HZ:");
-				display.println(samplingRate);
-				display.print(" @");
-				display.print(lastDataCount);
-				display.printlnAndDisplay(" Samples");
+				//display.ClearDisplay();
+				//display.println("Sampling rate in HZ:");
+				//display.println(samplingRate);
+				//display.print(" @");
+				//display.print(lastDataCount);
+				//display.printlnAndDisplay(" Samples");
+			}
+			else
+			{
+				Serial.println("Sampling rate in HZ:");
+				Serial.println(samplingRate);
+				Serial.print(" @");
+				Serial.print(lastDataCount);
+				Serial.println(" Samples");
 			}
 		}
 

@@ -21,13 +21,14 @@ private:
 	{
 		FString adr;
 		int32 ID;
+		int32 rate;
 		
-		IMUClient(FString address, int32 id)
-			: adr(address), ID(id)
+		IMUClient(FString address, int32 id, int32 smplrate)
+			: adr(address), ID(id), rate(smplrate)
 		{}
 
 		IMUClient()
-			:adr("INVALID"), ID(-1)
+			:adr("INVALID"), ID(-1), rate(-1)
 		{}
 	};
 
@@ -78,12 +79,15 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void SendIDRequest(FString ipAddress, int32 ID);
+	
+	UFUNCTION(BlueprintCallable)
+		void SendSamplingRateToAllClients(int SamplingRateInMicroSeconds);
 
 	UFUNCTION(BlueprintCallable)
 		int32 GetNumClients();
 
 	UFUNCTION(BlueprintCallable)
-		void GetClientInfo(TArray<FString>& names, TArray<int32>& ids);
+		void GetClientInfo(TArray<FString>& names, TArray<int32>& ids, TArray<int32>& rates);
 
 	UFUNCTION(BlueprintCallable)
 		void StartDataCapture();

@@ -14,6 +14,7 @@ private:
 	static const char* KEY_MAGNETCONFIG_1;
 	static const char* KEY_MAGNETCONFIG_2;
 	static const char* KEY_MAGNETCONFIG_3;
+	static const char* KEY_SAMPLING_RATE;
 	static const uint32_t JSON_BUFFER_SIZE = 512;
 
 	template<typename T>
@@ -98,4 +99,6 @@ public:
 	static int16_t LoadID();
 	static bool SaveMagnetCalibration(float m1, float m2, float m3);
 	static bool LoadMagnetCalibration(float& out_m1, float& out_m2, float& out_m3);
+	static bool SaveSamplingRate(int32_t rate);
+	static int32_t LoadSamplingRate();
 };

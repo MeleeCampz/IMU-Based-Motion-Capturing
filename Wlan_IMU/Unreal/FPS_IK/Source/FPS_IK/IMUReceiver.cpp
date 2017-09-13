@@ -105,12 +105,17 @@ void UIMUReceiver::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 		bool contains = false;
 		for (int i = 0; i < _clients.Num(); i++)
 		{
-			if (_clients[i].adr == client.adr)
+			if (_clients[i].adr == client.adr) //ip already exsists
 			{
 				contains = true;
 				if (_clients[i].ID != client.ID)
 				{
 					_clients[i].ID = client.ID;
+					updated = true;
+				}
+				if (_clients[i].rate != client.rate)
+				{
+					_clients[i].rate = client.rate;
 					updated = true;
 				}
 				break;
@@ -208,13 +213,19 @@ void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FI
 	}
 
 	int id = -1;
-	FString leftSide, rightSide;
+	int rate = -1;
+	FString leftSide, rightSide, rightrightSide;  //naming....
 	if (message.Split("ID:", &leftSide, &rightSide))
 	{
-		id = FCString::Atoi(*rightSide);
+		if (rightSide.Split("_Rate:", &leftSide, &rightrightSide))
+		{
+			id = FCString::Atoi(*leftSide);
+			rate = FCString::Atoi(*rightrightSide);
+		}
+
 	}
 
-	_clientsToAdd.Enqueue(IMUClient(EndPt.ToInternetAddr().Get().ToString(false), id));
+	_clientsToAdd.Enqueue(IMUClient(EndPt.ToInternetAddr().Get().ToString(false), id, rate));
 }
 
 void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4Endpoint & EndPt)
@@ -270,17 +281,31 @@ void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
 	}
 }
 
+void UIMUReceiver::SendSamplingRateToAllClients(int SamplingRateInMicroSeconds)
+{
+	FString message = "SMPL_RATE:" + FString::FromInt(SamplingRateInMicroSeconds);
+	for (int i = 0; i < _clients.Num(); i++)
+	{
+		const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
+		int32 bytesSent;
+		TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(_clients[i].adr, BROADCAST_PORT);
+		int32 stringLen = message.Len() + 1;
+		_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
+	}
+}
+
 int32 UIMUReceiver::GetNumClients()
 {
 	return _clients.Num();
 }
 
-void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids)
+void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids, TArray<int32>& rates)
 {
 	for (int i = 0; i < _clients.Num(); i++)
 	{
 		names.Add(_clients[i].adr);
 		ids.Add(_clients[i].ID);
+		rates.Add(_clients[i].rate);
 	}
 }
 
