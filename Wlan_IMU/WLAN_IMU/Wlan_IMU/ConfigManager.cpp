@@ -47,6 +47,42 @@ bool ConfigManager::LoadMagnetCalibration(float & out_m1, float & out_m2, float 
 	return b1 && b2 && b3;
 }
 
+bool ConfigManager::SaveAccelCalibration(float m1, float m2, float m3)
+{
+	bool b1 = WriteKeyValue(KEY_ACCELCONFIG_1, m1);
+	bool b2 = WriteKeyValue(KEY_ACCELCONFIG_2, m2);
+	bool b3 = WriteKeyValue(KEY_ACCELCONFIG_3, m3);
+
+	return b1 && b2 && b3;
+}
+
+bool ConfigManager::LoadAccelCalibration(float & out_m1, float & out_m2, float & out_m3)
+{
+	bool b1 = ReadKey(KEY_ACCELCONFIG_1, out_m1);
+	bool b2 = ReadKey(KEY_ACCELCONFIG_2, out_m2);
+	bool b3 = ReadKey(KEY_ACCELCONFIG_3, out_m3);
+
+	return b1 && b2 && b3;
+}
+
+bool ConfigManager::SaveGyroCalibration(float m1, float m2, float m3)
+{
+	bool b1 = WriteKeyValue(KEY_GYROCONFIG_1, m1);
+	bool b2 = WriteKeyValue(KEY_GYROCONFIG_2, m2);
+	bool b3 = WriteKeyValue(KEY_GYROCONFIG_3, m3);
+
+	return b1 && b2 && b3;
+}
+
+bool ConfigManager::LoadGyroCalibration(float & out_m1, float & out_m2, float & out_m3)
+{
+	bool b1 = ReadKey(KEY_GYROCONFIG_1, out_m1);
+	bool b2 = ReadKey(KEY_GYROCONFIG_2, out_m2);
+	bool b3 = ReadKey(KEY_GYROCONFIG_3, out_m3);
+
+	return b1 && b2 && b3;
+}
+
 bool ConfigManager::SaveSamplingRate(int32_t rate)
 {
 	return WriteKeyValue(KEY_SAMPLING_RATE, rate);
