@@ -82,6 +82,11 @@ void NetworkManager::SetCallbackOnNewSampleRate(std::function<void(int32_t rate)
 	_sampleRateCallback = fcn;
 }
 
+void NetworkManager::SetCallbackOnCallibrateSensor(std::function<void()> fcn)
+{
+	_callibrateSensorCallback = fcn;
+}
+
 void NetworkManager::BeginWebConfig()
 {
 	WiFi.mode(WiFiMode::WIFI_AP);
@@ -323,6 +328,14 @@ void NetworkManager::CheckUDPResponse()
 
 			Serial.print("New id: ");
 			Serial.println(ID);
+		}
+		else if (response.equals("SensorCalib"))
+		{
+			Serial.println("Received SensorCalib Request!");
+			if (_callibrateSensorCallback)
+			{
+				_callibrateSensorCallback();
+			}
 		}
 		else if (response.startsWith("SMPL_RATE:"))
 		{
