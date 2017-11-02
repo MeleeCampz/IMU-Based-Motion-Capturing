@@ -25,7 +25,7 @@ const bool useDisplay = false;
 
 float samplingRateInMicros = 33 * 1000;
 
-void setupMPU(bool calibMag)
+void setupMPU()
 {
 	//Init MPU
 	mpu.begin(SDA, SCL, m_intPin);
@@ -41,35 +41,56 @@ void setupMPU(bool calibMag)
 		}
 	}
 
-	// Calibrate gyro and accelerometers, load biases in bias registers, then initialize MPU.
-	mpu.selfTest();
-	mpu.calibrate();
-	mpu.init();
-	if (calibMag)
+
+	//mpu.selfTest();
+	int32_t gX, gY, gZ;
+	float aX, aY, aZ;
+	bool success = ConfigManager::LoadGyroCalibration(gX, gY, gZ);
+	success = success && ConfigManager::LoadAccelCalibration(aX, aY, aZ);
+	if (success)
 	{
-		digitalWrite(LED_BUILTIN, LOW);
-		mpu.magCalibrate();
-		ConfigManager::SaveMagnetCalibration(mpu.magBias[0], mpu.magBias[1], mpu.magBias[2]);
-		digitalWrite(LED_BUILTIN, HIGH);
+		mpu.manualCalibrate(gX, gY, gZ, aX, aY, aZ);
 	}
 	else
 	{
-		float f1, f2, f3;
-		ConfigManager::LoadMagnetCalibration(f1, f2, f3);
-		mpu.setMagCalibrationManually(f1, f2, f3);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   														 //mpu.setMagCalibrationManually(0, 0, 0);    //Set manually with the results of magCalibrate() if you don't want to calibrate at each device bootup.														   
+		Serial.println("Failed to load Sensor Bias");
 	}
+	mpu.init();
 
-
+	float f1, f2, f3;
+	success = ConfigManager::LoadMagnetCalibration(f1, f2, f3);
+	if (success)
+	{
+		mpu.setMagCalibrationManually(f1, f2, f3);
+	}
+	else
+	{
+		Serial.println("Failed to load magnetometer bias");
+	}
 	if (useDisplay)
 	{
 		display.ClearAndDisplay("MPU9250 calibrated!");
 	}
 }
 
+void SensorCalibCallback()
+{
+	mpu.autoCalibrate();
+	ConfigManager::Begin();
+	ConfigManager::SaveAccelCalibration(mpu.accelBias[0], mpu.accelBias[1], mpu.accelBias[2]);
+	ConfigManager::SaveGyroCalibration(mpu.gyroBias[0], mpu.gyroBias[1], mpu.gyroBias[2]);
+	setupMPU();
+	ConfigManager::End();
+}
+
 void MagCalibCallback()
 {
+	digitalWrite(LED_BUILTIN, LOW);
+	mpu.magCalibrate();
 	ConfigManager::Begin();
-	setupMPU(true);
+	ConfigManager::SaveMagnetCalibration(mpu.magBias[0], mpu.magBias[1], mpu.magBias[2]);
+	digitalWrite(LED_BUILTIN, HIGH);
+	setupMPU();
 	ConfigManager::End();
 }
 
@@ -92,7 +113,7 @@ void setup()
 		display.BeginDisplay();
 
 	ConfigManager::Begin();
-	setupMPU(false);
+	setupMPU();
 	int32_t rate = ConfigManager::LoadSamplingRate();
 	if (rate > 0)
 	{
@@ -104,9 +125,26 @@ void setup()
 	}
 	ConfigManager::End();
 
+	//Serial.println("Gyro Bias:");
+	//Serial.print("X: ");
+	//Serial.print(mpu.gyroBias[0]);
+	//Serial.print("  Y: ");
+	//Serial.print(mpu.gyroBias[1]);
+	//Serial.print("  Z: ");
+	//Serial.println(mpu.gyroBias[2]);
+
+	//Serial.println("Accel Bias:");
+	//Serial.print("X: ");
+	//Serial.print(mpu.accelBias[0]);
+	//Serial.print("  Y: ");
+	//Serial.print(mpu.accelBias[1]);
+	//Serial.print("  Z: ");
+	//Serial.println(mpu.accelBias[2]);
+
 	networkManager.Begin();
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
 	networkManager.SetCallbackOnNewSampleRate(&SampleRateCallback);
+	networkManager.SetCallbackOnCallibrateSensor(&SensorCalibCallback);
 }
 
 uint32_t lastUpdate = 0;
@@ -128,7 +166,7 @@ void loop()
 		lastUpdate = micros();
 		if (TEST_SAMPLRATE)
 			lastDataCount++;
-		
+
 		mpu.readAccelData(&accResult);
 		mpu.readGyroData(&gyroResult);
 		mpu.readMagData(&magResult);
@@ -145,26 +183,36 @@ void loop()
 		//readOrientation(&orientResult, declination);
 		readVelocity(&velResult);
 
+		//float x, y, z;
+		//x = accResult.getXComponent();
+		//y = accResult.getYComponent();
+		//z = accResult.getZComponent();
+
+		//float length = sqrt(x*x + y*y + z*z);
+
 		//Serial.print("X: ");
-		//Serial.print(accResult.getXComponent());
+		//Serial.print(x);
 		//Serial.print("Y: ");
-		//Serial.print(accResult.getYComponent());
+		//Serial.print(y);
 		//Serial.print("Z: ");
-		//Serial.println(accResult.getZComponent());
+		//Serial.println(z);
+		//Serial.print("Len: ");
+		//Serial.println(length);
 
 		//orientResult.printResult();
+		//gyroResult.printResult();
 
 		if (TEST_SAMPLRATE)
 		{
 			float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
 			if (useDisplay)
 			{
-				//display.ClearDisplay();
-				//display.println("Sampling rate in HZ:");
-				//display.println(samplingRate);
-				//display.print(" @");
-				//display.print(lastDataCount);
-				//display.printlnAndDisplay(" Samples");
+				display.ClearDisplay();
+				display.println("Sampling rate in HZ:");
+				display.println(samplingRate);
+				display.print(" @");
+				display.print(lastDataCount);
+				display.printlnAndDisplay(" Samples");
 			}
 			else
 			{
@@ -177,7 +225,7 @@ void loop()
 		}
 
 		netData.timeStampt = lastSample;
-		
+
 		netData.rotation[0] = getQ()[0];
 		netData.rotation[1] = getQ()[1];
 		netData.rotation[2] = getQ()[2];

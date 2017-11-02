@@ -105,10 +105,10 @@ public:
 	static int16_t LoadID();
 	static bool SaveMagnetCalibration(float m1, float m2, float m3);
 	static bool LoadMagnetCalibration(float& out_m1, float& out_m2, float& out_m3);
-	static bool SaveAccelCalibration(float m1, float m2, float m3);
-	static bool LoadAccelCalibration(float& out_m1, float& out_m2, float& out_m3);
-	static bool SaveGyroCalibration(float m1, float m2, float m3);
-	static bool LoadGyroCalibration(float& out_m1, float& out_m2, float& out_m3);
+	static bool SaveAccelCalibration(float aX, float aY, float aZ);
+	static bool LoadAccelCalibration(float& out_aX, float& out_aY, float& out_aZ);
+	static bool SaveGyroCalibration(int32_t gX, int32_t gY, int32_t gZ);
+	static bool LoadGyroCalibration(int32_t& out_gX, int32_t& out_gY, int32_t& out_gZ);
 	static bool SaveSamplingRate(int32_t rate);
 	static int32_t LoadSamplingRate();
 };

@@ -202,8 +202,8 @@ class MPU9250
 	};
 
 	// Specify sensor full scale
-	uint8_t Gscale = GFS_250DPS;
-	uint8_t Ascale = AFS_2G;
+	uint8_t Gscale = GFS_1000DPS;
+	uint8_t Ascale = AFS_4G;
 	// Choose either 14-bit or 16-bit magnetometer resolution
 	uint8_t Mscale = MFS_16BITS;
 	// 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
@@ -216,7 +216,10 @@ class MPU9250
 	// Factory mag calibration and mag bias
 	float magCalibration[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
 	// Bias corrections for gyro and accelerometer
-	float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0};
+	//unscaled
+	int gyroBias[3] = { 0, 0, 0 };
+	//scaled
+	float accelBias[3] = {0, 0, 0};
 	float SelfTest[6];
 
 	
@@ -228,7 +231,8 @@ class MPU9250
 	void readMagData(IMUResult *);
 	int16_t readTempData();
 	void init();
-	void calibrate();
+	void autoCalibrate();
+	void manualCalibrate(int32_t gyroX, int32_t gyroY, int32_t gyroZ, float accelX, float accelY, float accelZ);
 	void selfTest();
 	void writeByte(uint8_t, uint8_t, uint8_t);
 	uint8_t readByte(uint8_t, uint8_t);

@@ -167,6 +167,20 @@ void UIMUReceiver::SaveLoadPacket(FArchive& ar, IMUNetData& data)
 	ar << data.ID;
 }
 
+void UIMUReceiver::SetNetString(FString ipAddress, FString message)
+{
+	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); 
+	int32 stringLen = message.Len() + 1;
+
+	int32 bytesSent;
+	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
+	_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
+	}
+}
+
 float UIMUReceiver::unpack_float(const uint8_t *buffer)
 {
 	float f;
@@ -254,31 +268,20 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 	}
 }
 
-void UIMUReceiver::SendCalibrateRequest(FString ipAddress)
+void UIMUReceiver::SendMagnetometerCalibrateRequest(FString ipAddress)
 {
-	const uint8* req = (const uint8*)"MagCalib"; //TODO: Move this somewhere else
-	int32 bytesSent;
-	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
-	_BroadcastSocket->SendTo(req, 9, bytesSent, RemoteAddr.Get());
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
-	}
+	SetNetString(ipAddress, "MagCalib");
+}
+
+void UIMUReceiver::SendAccGyroCalibrateRequest(FString ipAddress)
+{
+	SetNetString(ipAddress, "SensorCalib");
 }
 
 void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
 {
 	FString message = "ID:" + FString::FromInt(ID);
-	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
-	int32 bytesSent;
-	TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(ipAddress, BROADCAST_PORT);
-	int32 stringLen = message.Len() + 1;
-
-	_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Orange, FString::Printf(TEXT("Bytes sent: %i (%s)"), bytesSent, *ipAddress));
-	}
+	SetNetString(ipAddress, message);
 }
 
 void UIMUReceiver::SendSamplingRateToAllClients(int SamplingRateInMicroSeconds)
@@ -286,11 +289,7 @@ void UIMUReceiver::SendSamplingRateToAllClients(int SamplingRateInMicroSeconds)
 	FString message = "SMPL_RATE:" + FString::FromInt(SamplingRateInMicroSeconds);
 	for (int i = 0; i < _clients.Num(); i++)
 	{
-		const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); //TODO: Move this somewhere else
-		int32 bytesSent;
-		TSharedRef<FInternetAddr> RemoteAddr = CreateAddr(_clients[i].adr, BROADCAST_PORT);
-		int32 stringLen = message.Len() + 1;
-		_BroadcastSocket->SendTo(req, stringLen, bytesSent, RemoteAddr.Get());
+		SetNetString(_clients[i].adr, message);
 	}
 }
 

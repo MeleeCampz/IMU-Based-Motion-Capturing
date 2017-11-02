@@ -66,6 +66,8 @@ private:
 	//Saves or load data - depending on operator overload of "<<"
 	void SaveLoadPacket(FArchive& ar, IMUNetData& data);
 
+	void SetNetString(FString ipAddress, FString message);
+
 public:	
 	// Sets default values for this component's properties
 	UIMUReceiver();
@@ -75,7 +77,10 @@ public:
 	void RecvData(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt);
 
 	UFUNCTION(BlueprintCallable)
-		void SendCalibrateRequest(FString ipAddress);
+		void SendMagnetometerCalibrateRequest(FString ipAddress);
+
+	UFUNCTION(BlueprintCallable)
+		void SendAccGyroCalibrateRequest(FString ipAddress);
 
 	UFUNCTION(BlueprintCallable)
 		void SendIDRequest(FString ipAddress, int32 ID);
