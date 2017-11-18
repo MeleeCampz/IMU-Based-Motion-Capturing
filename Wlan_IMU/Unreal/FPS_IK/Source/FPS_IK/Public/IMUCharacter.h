@@ -7,16 +7,16 @@
 #include "Runtime/Engine/Classes/Components/SkeletalMeshComponent.h"
 #include "IMUCharacter.generated.h"
 
-USTRUCT(BlueprintType)
-struct FIMUSensor
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int ID;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FString BoneName;
-};
+//USTRUCT(BlueprintType)
+//struct FIMUSensor
+//{
+//	GENERATED_BODY()
+//	
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	int ID;
+//	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//	FString BoneName;
+//};
 
 
 UCLASS()
@@ -33,8 +33,8 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FIMUSensor> SensorData;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//TArray<FIMUSensor> SensorData;
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

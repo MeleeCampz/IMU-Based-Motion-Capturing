@@ -21,8 +21,6 @@ void AIMUCharacter::BeginPlay()
 void AIMUCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	//GetMesh()->;
 }
 
 // Called to bind functionality to input
