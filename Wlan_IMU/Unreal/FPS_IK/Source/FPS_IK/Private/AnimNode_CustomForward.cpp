@@ -12,6 +12,8 @@ FAnimNode_CustomForward::FAnimNode_CustomForward()
 
 void FAnimNode_CustomForward::Initialize_AnyThread(const FAnimationInitializeContext & Context)
 {
+	FAnimNode_Base::Initialize_AnyThread(Context);
+
 	BasePose.Initialize(Context);
 }
 
@@ -20,7 +22,19 @@ void FAnimNode_CustomForward::CacheBones_AnyThread(const FAnimationCacheBonesCon
 	BasePose.CacheBones(Context);
 }
 
+void FAnimNode_CustomForward::Update_AnyThread(const FAnimationUpdateContext& Context)
+{
+	BasePose.Update(Context);
+}
+
 void FAnimNode_CustomForward::Evaluate_AnyThread(FPoseContext & Output)
 {
-	EvaluateGraphExposedInputs.Execute(Output);
+	FPoseContext context(Output);
+	BasePose.Evaluate(context);
+	Output.Pose.CopyBonesFrom(context.Pose);
+
+	for (FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+	{
+		Output.Pose[BoneIndex].ConcatenateRotation(FQuat::MakeFromEuler(FVector(0, 0, SampleFloat)));
+	}
 }
