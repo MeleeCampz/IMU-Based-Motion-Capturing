@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimGraphNode_Base.h"
+#include "AnimGraphNode_SkeletalControlBase.h"
 #include "AnimNode_CustomForward.h"
 #include "AnimGraphNode_CustomForward.generated.h"
 
@@ -11,7 +11,7 @@
  * 
  */
 UCLASS()
-class FPS_IK_API UAnimGraphNode_CustomForward : public UAnimGraphNode_Base
+class FPS_IK_API UAnimGraphNode_CustomForward : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_BODY()
 	

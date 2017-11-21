@@ -4,37 +4,21 @@
 #include "AnimInstanceProxy.h"
 #include "FPS_IK.h"
 
-//#include "AnimationRuntime.h"
 
 FAnimNode_CustomForward::FAnimNode_CustomForward()
-	:SampleFloat(128.333)
 {}
 
-void FAnimNode_CustomForward::Initialize_AnyThread(const FAnimationInitializeContext & Context)
+void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext & Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
-	FAnimNode_Base::Initialize_AnyThread(Context);
-
-	BasePose.Initialize(Context);
+	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 }
 
-void FAnimNode_CustomForward::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
+//bool FAnimNode_CustomForward::IsValidToEvaluate(const USkeleton * Skeleton, const FBoneContainer & RequiredBones)
+//{
+//	//return FAnimNode_SkeletalControlBase::IsValidToEvaluate(Skeleton, RequiredBones);
+//}
+//
+void FAnimNode_CustomForward::InitializeBoneReferences(const FBoneContainer & RequiredBones)
 {
-	BasePose.CacheBones(Context);
-}
-
-void FAnimNode_CustomForward::Update_AnyThread(const FAnimationUpdateContext& Context)
-{
-	BasePose.Update(Context);
-}
-
-void FAnimNode_CustomForward::Evaluate_AnyThread(FPoseContext & Output)
-{
-	FPoseContext context(Output);
-	BasePose.Evaluate(context);
-	Output.Pose.CopyBonesFrom(context.Pose);
-
-	for (FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
-	{
-		Output.Pose[BoneIndex].ConcatenateRotation(FQuat::MakeFromEuler(FVector(0, 0, SampleFloat)));
-	}
+	//Continue here!!!
 }
