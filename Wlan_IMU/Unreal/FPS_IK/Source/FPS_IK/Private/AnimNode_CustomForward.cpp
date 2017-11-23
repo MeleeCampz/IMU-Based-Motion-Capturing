@@ -15,14 +15,18 @@ void FAnimNode_CustomForward::GatherDebugData(FNodeDebugData & DebugData)
 
 void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext & Output, TArray<FBoneTransform>& OutBoneTransforms)
 {	
-	if (_bones.Num() != BoneTransforms.Rotations.Num())
+	if (BoneRotations.Names.Num() != BoneRotations.Rotations.Num())
 		return;
-
+	
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
 	for (int i = 0; i < _bones.Num(); i++)
 	{
-		FCompactPoseBoneIndex index = _bones[i].GetCompactPoseIndex(BoneContainer);
+		int rotIdx = BoneRotations.Names.IndexOfByKey(_bones[i].Key);
+		if (rotIdx == INDEX_NONE)
+			continue;
+		
+		FCompactPoseBoneIndex index = _bones[i].Value.GetCompactPoseIndex(BoneContainer);
 		FTransform originalLocalTM = Output.Pose.GetLocalSpaceTransform(index);
 
 		if (index == INDEX_NONE)
@@ -31,16 +35,17 @@ void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		FCompactPoseBoneIndex parent = Output.Pose.GetPose().GetParentBoneIndex(index);
 
 		const FTransform& parentTM = Output.Pose.GetComponentSpaceTransform(parent);
-		originalLocalTM.SetRotation(BoneTransforms.Rotations[i]);
+		
+		originalLocalTM.SetRotation(BoneRotations.Rotations[rotIdx]);
 		OutBoneTransforms.Add(FBoneTransform(index, originalLocalTM * parentTM));
 	}
 }
 
 bool FAnimNode_CustomForward::IsValidToEvaluate(const USkeleton * Skeleton, const FBoneContainer & RequiredBones)
 {
-	for (FBoneReference boneRef : _bones)
+	for (TPair<FName, FBoneReference> boneRef : _bones)
 	{
-		if (!boneRef.IsValidToEvaluate())
+		if (!boneRef.Value.IsValidToEvaluate())
 		{
 			return false;
 		}
@@ -53,14 +58,13 @@ void FAnimNode_CustomForward::InitializeBoneReferences(const FBoneContainer & Re
 {	
 	_bones.Empty();
 	
-	for (FName name : BoneTransforms.Names)
+	for (FName name : BoneRotations.Names)
 	{
 		FBoneReference bone = FBoneReference(name);
 		bone.Initialize(RequiredBones);
-		_bones.Add(bone);
+		_bones.Add(TPairInitializer<FName, FBoneReference>(name, bone));
 	}
 
-	//Sort bones in descening order
-	_bones.Sort([](const FBoneReference &a, const FBoneReference &b) { return a.BoneIndex < b.BoneIndex; });
-	//Rotations have to be sorted as wel.... continue here!!!
-}
+	//Bones habe to be sorted in descendinf order, so paraent bones are updated before their childs
+	_bones.Sort([](const TPair<FName, FBoneReference> &a, const TPair<FName, FBoneReference> &b) { return a.Value.BoneIndex < b.Value.BoneIndex; })
+;}

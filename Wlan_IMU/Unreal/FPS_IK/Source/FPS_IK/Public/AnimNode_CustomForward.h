@@ -4,12 +4,12 @@
 #include "AnimNode_CustomForward.generated.h"
 
 USTRUCT(BlueprintType)
-struct FBonesTransfroms
+struct FBoneRotations
 {
 	GENERATED_BODY()
 		/*Array of names*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BonesTransfroms")
-	TArray <FName> Names;
+	TArray<FName> Names;
 	/*Array of transforms*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BonesTransfroms")
 	TArray<FQuat> Rotations;
@@ -22,11 +22,12 @@ struct FPS_IK_API FAnimNode_CustomForward : public FAnimNode_SkeletalControlBase
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "IMU", meta = (PinShownByDefault))
-	FBonesTransfroms BoneTransforms;
+	FBoneRotations BoneRotations;
+		
+	//TMap<FName, FQuat> rotations;
 
 private:
-
-	TArray<FBoneReference> _bones;
+	TArray<TPair<FName, FBoneReference>> _bones;
 
 public:
 	// Constructor 
