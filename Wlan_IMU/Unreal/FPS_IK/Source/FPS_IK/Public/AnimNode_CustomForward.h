@@ -3,15 +3,30 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "AnimNode_CustomForward.generated.h"
 
+USTRUCT(BlueprintType)
+struct FBonesTransfroms
+{
+	GENERATED_BODY()
+		/*Array of names*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BonesTransfroms")
+	TArray <FName> Names;
+	/*Array of transforms*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BonesTransfroms")
+	TArray<FQuat> Rotations;
+};
+
+
 USTRUCT()
 struct FPS_IK_API FAnimNode_CustomForward : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IMU)
-		TArray<FString> BoneNames;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IMU)
-		TArray<FVector> BoneRots;
+	UPROPERTY(EditAnywhere, Category = "IMU", meta = (PinShownByDefault))
+	FBonesTransfroms BoneTransforms;
+
+private:
+
+	TArray<FBoneReference> _bones;
 
 public:
 	// Constructor 
@@ -19,8 +34,9 @@ public:
 
 public:
 	// FAnimNode_SkeletalControlBase interface
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
-	//virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	// FAnimNode_SkeletalControlBase interface
 
 protected:

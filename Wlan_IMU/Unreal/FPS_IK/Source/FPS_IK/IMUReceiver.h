@@ -104,7 +104,7 @@ public:
 		void Load(FString FilePath);
 
 	UFUNCTION(BlueprintCallable)
-		bool GetRotation(int ID, FRotator& out);
+		bool GetRotation(int ID, FQuat& out);
 
 	UPROPERTY(BlueprintAssignable)
 		FOnClientUpdate OnClientUpdate;
