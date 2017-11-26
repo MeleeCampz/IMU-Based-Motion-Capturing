@@ -106,6 +106,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 		bool GetRotation(int ID, FQuat& out);
 
+	UFUNCTION(BlueprintCallable)
+	FRotator QuatToRot(FQuat in)
+	{
+		return FRotator(in);
+	}
+
 	UPROPERTY(BlueprintAssignable)
 		FOnClientUpdate OnClientUpdate;
 

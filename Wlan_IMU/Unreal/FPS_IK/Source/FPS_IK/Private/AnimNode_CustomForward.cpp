@@ -55,6 +55,7 @@ void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		FTransform CSTransform = Output.Pose.GetComponentSpaceTransform(index);
 		FQuat compSpaceRot = CSTransform.GetRotation();
 		FQuat rotationOverride = compSpaceRot * inRot *oldRotInv;
+		rotationOverride.Normalize();
 		appliedRotaions.Add(index.GetInt(), inRot);
 		CSTransform.SetRotation(rotationOverride);
 
