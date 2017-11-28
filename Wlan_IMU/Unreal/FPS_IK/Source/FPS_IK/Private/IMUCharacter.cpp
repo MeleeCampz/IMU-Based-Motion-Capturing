@@ -30,8 +30,8 @@ void AIMUCharacter::Tick(float DeltaTime)
 	FQuat out;
 	for (FBoneAnimationStructure& bone : BoneRotationData)
 	{
-		_imuReceiver->GetRotation(bone.ID, out);
-		bone.CurrentRotation = out * bone.RotationOffset.Inverse();
+		if (_imuReceiver->GetRotation(bone.ID, out))
+			bone.CurrentRotation = out *bone.Offset;
 	}
 }
 
@@ -44,11 +44,13 @@ void AIMUCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 void AIMUCharacter::ApplyTPoseConfiguration()
 {
+	
+	
 	for (FBoneAnimationStructure& bone : BoneRotationData)
 	{
 		FQuat out;
 		_imuReceiver->GetRotation(bone.ID, out);
-		bone.RotationOffset = out;
+		bone.Offset = out.Inverse();
 	}
 }
 

@@ -358,20 +358,15 @@ void UIMUReceiver::Load(FString FilePath)
 
 bool UIMUReceiver::GetRotation(int ID, FQuat& out)
 {
-	IMUNetData * data = _IMUData.Find(ID);
+	IMUNetData* data = _IMUData.Find(ID);
 	if (!data)
 	{
 		return false;
 	}
 
-
 	FQuat rot(-data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
 	//FQuat rot(data->rotation[3], data->rotation[2], -data->rotation[1], data->rotation[0]);
 	out = rot;
-
-	//out.Pitch = 180 - out.Pitch;
-	
-	//out.Clamp();
 
 	return true;
 }

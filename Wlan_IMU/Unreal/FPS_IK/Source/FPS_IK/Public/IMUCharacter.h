@@ -18,18 +18,18 @@ struct FBoneAnimationStructure
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName BoneName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FQuat CurrentRotation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FQuat RotationOffset;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FQuat Offset;
 
 	FBoneAnimationStructure()
 	{
 		ID = -1;
 		BoneName = "None";
 		CurrentRotation = FQuat::Identity;
-		RotationOffset = FQuat::Identity;
+		Offset = FQuat::Identity;
 	}
 };
 
@@ -40,7 +40,7 @@ class FPS_IK_API AIMUCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FBoneAnimationStructure> BoneRotationData;
 
 public:
