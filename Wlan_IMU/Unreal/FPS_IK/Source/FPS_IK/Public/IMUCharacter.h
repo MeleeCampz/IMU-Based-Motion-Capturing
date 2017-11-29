@@ -22,14 +22,18 @@ struct FBoneAnimationStructure
 	FQuat CurrentRotation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FQuat Offset;
+	FQuat WorldZeroOffset;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FQuat LocalSensorToBoneOffset;
 
 	FBoneAnimationStructure()
 	{
 		ID = -1;
 		BoneName = "None";
 		CurrentRotation = FQuat::Identity;
-		Offset = FQuat::Identity;
+		WorldZeroOffset = FQuat::Identity;
+		LocalSensorToBoneOffset = FQuat::Identity;
 	}
 };
 
@@ -42,6 +46,9 @@ class FPS_IK_API AIMUCharacter : public ACharacter
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FBoneAnimationStructure> BoneRotationData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimationAsset* TPoseAnimation;
 
 public:
 	// Sets default values for this character's properties
