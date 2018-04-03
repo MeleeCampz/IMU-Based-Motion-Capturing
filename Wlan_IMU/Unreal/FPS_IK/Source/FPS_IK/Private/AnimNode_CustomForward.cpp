@@ -57,10 +57,11 @@ void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		FQuat rotationOverride = compSpaceRot * inRot *oldRotInv;
 		rotationOverride.Normalize();
 		appliedRotaions.Add(index.GetInt(), inRot);
-		CSTransform.SetRotation(rotationOverride);
+		//CSTransform.SetRotation(rotationOverride);
+		CSTransform.SetRotation(inRot);
 
 		//OutBoneTransforms.Add(FBoneTransform(index, transform));
-		//Can be optimized.... Problem is that, any parent bones have to be updated bofore the children, or they willend up being disjointed, due to wrong positon
+		//Can be optimized.... Problem is that, any parent bones have to be updated bofore the children, or they will end up being disjointed, due to wrong positon
 		TArray<FBoneTransform> TempTransforms;
 		TempTransforms.Add(FBoneTransform(index, CSTransform));
 		Output.Pose.LocalBlendCSBoneTransforms(TempTransforms, 1.0f);
