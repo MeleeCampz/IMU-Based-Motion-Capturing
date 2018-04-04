@@ -87,6 +87,11 @@ void NetworkManager::SetCallbackOnCallibrateSensor(std::function<void()> fcn)
 	_callibrateSensorCallback = fcn;
 }
 
+void NetworkManager::SetCallbackOTAUpdate(std::function<void()> fcn)
+{
+	_otaCallback = fcn;
+}
+
 void NetworkManager::BeginWebConfig()
 {
 	WiFi.mode(WiFiMode::WIFI_AP);
@@ -336,6 +341,10 @@ void NetworkManager::CheckUDPResponse()
 			{
 				_callibrateSensorCallback();
 			}
+		}
+		else if (response.equals("OTA"))
+		{
+			_otaCallback();
 		}
 		else if (response.startsWith("SMPL_RATE:"))
 		{

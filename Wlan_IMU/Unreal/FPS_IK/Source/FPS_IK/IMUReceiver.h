@@ -66,7 +66,7 @@ private:
 	//Saves or load data - depending on operator overload of "<<"
 	void SaveLoadPacket(FArchive& ar, IMUNetData& data);
 
-	void SetNetString(FString ipAddress, FString message);
+	void SendNetString(FString ipAddress, FString message);
 
 public:	
 	// Sets default values for this component's properties
@@ -84,6 +84,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void SendIDRequest(FString ipAddress, int32 ID);
+
+	UFUNCTION(BlueprintCallable)
+		void InitOTAFirmwareUpdate(FString ipAddress);
 	
 	UFUNCTION(BlueprintCallable)
 		void SendSamplingRateToAllClients(int SamplingRateInMicroSeconds);

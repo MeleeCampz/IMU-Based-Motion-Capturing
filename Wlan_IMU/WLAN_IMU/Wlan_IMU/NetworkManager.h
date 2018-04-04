@@ -53,6 +53,7 @@ private:
 	std::function<void()> _magCallback;
 	std::function<void(int32_t samplRate)> _sampleRateCallback;
 	std::function<void()> _callibrateSensorCallback;
+	std::function<void()> _otaCallback;
 
 	//UDP
 	WiFiUDP _Udp;
@@ -81,6 +82,7 @@ public:
 	void SetCallbackOnMagCalibration(std::function<void()> fcn);
 	void SetCallbackOnNewSampleRate(std::function<void(int32_t rate)> fcn);
 	void SetCallbackOnCallibrateSensor(std::function<void()> fcn);
+	void SetCallbackOTAUpdate(std::function<void()> fcn);
 
 	//Add data to buffer (and add id); send if buffer is full
 	bool WriteData(NetData::IMUData &data);

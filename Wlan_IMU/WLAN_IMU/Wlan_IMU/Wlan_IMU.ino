@@ -1,3 +1,5 @@
+#include <ESP8266HTTPClient.h>
+#include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include "NetworkManager.h"
 #include "ConfigManager.h"
@@ -94,6 +96,16 @@ void MagCalibCallback()
 	ConfigManager::End();
 }
 
+void OTAUpdate()
+{
+	digitalWrite(LED_BUILTIN, LOW);
+	while (true)
+	{
+		delay(200);
+		digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+	}
+}
+
 void SampleRateCallback(int32_t newRate)
 {
 	samplingRateInMicros = newRate;
@@ -145,11 +157,14 @@ void setup()
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
 	networkManager.SetCallbackOnNewSampleRate(&SampleRateCallback);
 	networkManager.SetCallbackOnCallibrateSensor(&SensorCalibCallback);
+	networkManager.SetCallbackOTAUpdate(&OTAUpdate);
 }
 
 uint32_t lastUpdate = 0;
 uint32_t lastSample = 0;
+#if TEST_SAMPLRATE
 uint32_t lastDataCount = 0;
+#endif
 
 char* sendBuffer = new char[12]; //3floats
 float r1, r2, r3;
@@ -164,8 +179,9 @@ void loop()
 	{
 		float delta = (micros() - lastUpdate) / 1000000.f;
 		lastUpdate = micros();
-		if (TEST_SAMPLRATE)
-			lastDataCount++;
+#if TEST_SAMPLRATE
+		lastDataCount++;
+#endif
 
 		mpu.readAccelData(&accResult);
 		mpu.readGyroData(&gyroResult);
@@ -202,8 +218,7 @@ void loop()
 		//orientResult.printResult();
 		//gyroResult.printResult();
 
-		if (TEST_SAMPLRATE)
-		{
+#if TEST_SAMPLRATE
 			float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
 			if (useDisplay)
 			{
@@ -222,8 +237,10 @@ void loop()
 				Serial.print(lastDataCount);
 				Serial.println(" Samples");
 			}
-		}
+			lastDataCount = 0;
+#endif
 
+		//Generate a netData object that is serialized over the network to the client application
 		netData.timeStampt = lastSample;
 
 		netData.rotation[0] = getQ()[0];
@@ -237,8 +254,6 @@ void loop()
 
 		networkManager.WriteData(netData);
 
-		if (TEST_SAMPLRATE)
-			lastDataCount = 0;
 		ResetVelocity();
 	}
 }

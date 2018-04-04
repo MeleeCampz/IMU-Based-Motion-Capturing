@@ -167,9 +167,9 @@ void UIMUReceiver::SaveLoadPacket(FArchive& ar, IMUNetData& data)
 	ar << data.ID;
 }
 
-void UIMUReceiver::SetNetString(FString ipAddress, FString message)
+void UIMUReceiver::SendNetString(FString ipAddress, FString message)
 {
-	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message); 
+	const uint8* req = (const uint8*)TCHAR_TO_ANSI(*message);
 	int32 stringLen = message.Len() + 1;
 
 	int32 bytesSent;
@@ -270,18 +270,24 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 
 void UIMUReceiver::SendMagnetometerCalibrateRequest(FString ipAddress)
 {
-	SetNetString(ipAddress, "MagCalib");
+	SendNetString(ipAddress, "MagCalib");
 }
 
 void UIMUReceiver::SendAccGyroCalibrateRequest(FString ipAddress)
 {
-	SetNetString(ipAddress, "SensorCalib");
+	SendNetString(ipAddress, "SensorCalib");
 }
 
 void UIMUReceiver::SendIDRequest(FString ipAddress, int32 ID)
 {
 	FString message = "ID:" + FString::FromInt(ID);
-	SetNetString(ipAddress, message);
+	SendNetString(ipAddress, message);
+}
+
+void UIMUReceiver::InitOTAFirmwareUpdate(FString ipAddress)
+{
+	FString message = "OTA";
+	SendNetString(ipAddress, message);
 }
 
 void UIMUReceiver::SendSamplingRateToAllClients(int SamplingRateInMicroSeconds)
@@ -289,7 +295,7 @@ void UIMUReceiver::SendSamplingRateToAllClients(int SamplingRateInMicroSeconds)
 	FString message = "SMPL_RATE:" + FString::FromInt(SamplingRateInMicroSeconds);
 	for (int i = 0; i < _clients.Num(); i++)
 	{
-		SetNetString(_clients[i].adr, message);
+		SendNetString(_clients[i].adr, message);
 	}
 }
 
