@@ -1,10 +1,16 @@
+//Arduino
 #include <ESP8266HTTPClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
+#include <ArduinoOTA.h>
+
+//Manager classes
 #include "NetworkManager.h"
 #include "ConfigManager.h"
 #include "DisplayHelper.h"
+#include "OTAHelper.h"
 
+//IMU
 #include "MPU9250.h"
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
@@ -98,12 +104,8 @@ void MagCalibCallback()
 
 void OTAUpdate()
 {
-	digitalWrite(LED_BUILTIN, LOW);
-	while (true)
-	{
-		delay(200);
-		digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-	}
+	OTAHelper helper;
+	helper.StartOTA();
 }
 
 void SampleRateCallback(int32_t newRate)

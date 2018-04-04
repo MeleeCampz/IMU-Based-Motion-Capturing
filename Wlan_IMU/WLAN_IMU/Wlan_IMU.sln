@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2006
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Wlan_IMU", "Wlan_IMU\Wlan_IMU.vcxproj", "{C5F80730-F44F-4478-BDAE-6634EFC2CA88}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BasicOTA", "C:\Users\Tobias\AppData\Local\arduino15\packages\esp8266\hardware\esp8266\2.3.0\libraries\ArduinoOTA\examples\BasicOTA\BasicOTA.vcxproj", "{AD07CA41-91DF-4658-9819-E6F05F456F78}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.Build.0 = Debug|Win32
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.ActiveCfg = Release|Win32
 		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.Build.0 = Release|Win32
+		{AD07CA41-91DF-4658-9819-E6F05F456F78}.Debug|x86.ActiveCfg = Debug|Win32
+		{AD07CA41-91DF-4658-9819-E6F05F456F78}.Debug|x86.Build.0 = Debug|Win32
+		{AD07CA41-91DF-4658-9819-E6F05F456F78}.Release|x86.ActiveCfg = Release|Win32
+		{AD07CA41-91DF-4658-9819-E6F05F456F78}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7EC7BA12-60EE-4D82-BA8D-CAC1CFC198FA}
 	EndGlobalSection
 EndGlobal
