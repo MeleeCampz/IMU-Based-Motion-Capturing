@@ -22,18 +22,14 @@ struct FBoneAnimationStructure
 	FQuat CurrentRotation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FQuat WorldZeroOffset;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	FQuat LocalSensorToBoneOffset;
+	FQuat TPoseOffset;
 
 	FBoneAnimationStructure()
 	{
 		ID = -1;
 		BoneName = "None";
 		CurrentRotation = FQuat::Identity;
-		WorldZeroOffset = FQuat::Identity;
-		LocalSensorToBoneOffset = FQuat::Identity;
+		TPoseOffset = FQuat::Identity;
 	}
 };
 

@@ -32,7 +32,9 @@ void AIMUCharacter::Tick(float DeltaTime)
 	for (FBoneAnimationStructure& bone : BoneRotationData)
 	{
 		if (_imuReceiver->GetRotation(bone.ID, out))
-			bone.CurrentRotation = bone.LocalSensorToBoneOffset *out *bone.WorldZeroOffset;
+		{
+			bone.CurrentRotation = out * bone.TPoseOffset;
+		}
 	}
 }
 
@@ -46,29 +48,28 @@ void AIMUCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 void AIMUCharacter::ApplyTPoseConfiguration()
 {
 	//Force TPose to be played, so the world roations of the virtual bones are correct
-	//GetMesh()->PlayAnimation(TPoseAnimation, false);
-	//GetMesh()->ValidateAnimation();
-	//GetMesh()->TickAnimation(0.33f, true);
-	
+	GetMesh()->PlayAnimation(TPoseAnimation, false);
+	GetMesh()->ValidateAnimation();
+	GetMesh()->TickAnimation(0.33f, true);	
 	
 	//TODO: Figure out a way to transform the sensor world space rotation to the correct bones component or world space roation
-	
 	for (FBoneAnimationStructure& bone : BoneRotationData)
 	{
-		FQuat curRotation, localSocketRotation, worldBoneRotation;
+		FQuat curRotation, localSocketRotation, worldBoneRotation, worldSocketRotation, componentBoneRotation;
 		if (!_imuReceiver->GetRotation(bone.ID, curRotation))
 		{
 			GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 			return;
 		}		
+
+		worldBoneRotation = GetMesh()->GetBoneQuaternion(bone.BoneName, EBoneSpaces::WorldSpace);
+
 		const USkeletalMeshSocket* socket = GetMesh()->GetSocketByName(FName(*bone.BoneName.ToString().Append(TEXT("Socket"))));
 		localSocketRotation = FQuat(socket->RelativeRotation);
+		worldSocketRotation = localSocketRotation * worldBoneRotation;
 
-		GetMesh()->GetBoneQuaternion(bone.BoneName, EBoneSpaces::WorldSpace);
-
-		//bone.Offset = (curRotation * virtualBoneRotation).Inverse();
-		bone.LocalSensorToBoneOffset = localSocketRotation;
-		bone.WorldZeroOffset = (localSocketRotation * curRotation).Inverse();
+		//bone.TPoseOffset = worldBoneRotation.Inverse() * curRotation.Inverse(); //Offset to bone zero position
+		bone.TPoseOffset = curRotation.Inverse() * worldBoneRotation;
 	}
 
 	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);

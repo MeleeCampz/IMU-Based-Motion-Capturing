@@ -99,3 +99,5 @@ Desktop.ini
 ## Arduino
 ############
 __vm/
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
