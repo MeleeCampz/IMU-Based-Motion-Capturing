@@ -49,13 +49,13 @@ void AIMUCharacter::ApplyTPoseConfiguration()
 {
 	//Force TPose to be played, so the world roations of the virtual bones are correct
 	GetMesh()->PlayAnimation(TPoseAnimation, false);
-	GetMesh()->ValidateAnimation();
+	//GetMesh()->ValidateAnimation();
 	GetMesh()->TickAnimation(0.33f, true);	
 	
 	//TODO: Figure out a way to transform the sensor world space rotation to the correct bones component or world space roation
 	for (FBoneAnimationStructure& bone : BoneRotationData)
 	{
-		FQuat curRotation, localSocketRotation, worldBoneRotation, worldSocketRotation, componentBoneRotation;
+		FQuat curRotation, worldBoneRotation;
 		if (!_imuReceiver->GetRotation(bone.ID, curRotation))
 		{
 			GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
@@ -64,9 +64,9 @@ void AIMUCharacter::ApplyTPoseConfiguration()
 
 		worldBoneRotation = GetMesh()->GetBoneQuaternion(bone.BoneName, EBoneSpaces::WorldSpace);
 
-		const USkeletalMeshSocket* socket = GetMesh()->GetSocketByName(FName(*bone.BoneName.ToString().Append(TEXT("Socket"))));
-		localSocketRotation = FQuat(socket->RelativeRotation);
-		worldSocketRotation = localSocketRotation * worldBoneRotation;
+		//const USkeletalMeshSocket* socket = GetMesh()->GetSocketByName(FName(*bone.BoneName.ToString().Append(TEXT("Socket"))));
+		//localSocketRotation = FQuat(socket->RelativeRotation);
+		//worldSocketRotation = localSocketRotation * worldBoneRotation;
 
 		//bone.TPoseOffset = worldBoneRotation.Inverse() * curRotation.Inverse(); //Offset to bone zero position
 		bone.TPoseOffset = curRotation.Inverse() * worldBoneRotation;

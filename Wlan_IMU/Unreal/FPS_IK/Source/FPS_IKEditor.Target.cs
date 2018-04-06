@@ -8,6 +8,12 @@ public class FPS_IKEditorTarget : TargetRules
 	public FPS_IKEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
-		ExtraModuleNames.Add("FPS_IK");
+
+		ExtraModuleNames.AddRange(
+			new string[]
+			{
+				"FPS_IK",
+				"FPS_IKEditor"
+			});
 	}
 }

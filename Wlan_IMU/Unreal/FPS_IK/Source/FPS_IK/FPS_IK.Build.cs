@@ -7,7 +7,27 @@ public class FPS_IK : ModuleRules
 	public FPS_IK(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		PublicIncludePaths.AddRange(
+			new string[]
+			{
+				"FPS_IK/Public"
+			});
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "Sockets", "Networking", "BlueprintGraph", "AnimGraphRuntime"});
+		PrivateIncludePaths.AddRange(
+			new string[]
+			{
+				"FPS_IK/Private"
+			});
+
+		PublicDependencyModuleNames.AddRange(
+			new string[] 
+			{
+				"Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "Sockets", "Networking"
+			});
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"AnimGraphRuntime"
+			});
 	}
 }

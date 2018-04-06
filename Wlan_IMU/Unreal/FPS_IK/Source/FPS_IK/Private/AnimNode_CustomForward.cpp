@@ -2,7 +2,6 @@
 
 #include "AnimNode_CustomForward.h"
 #include "AnimInstanceProxy.h"
-#include "FPS_IK.h"
 
 
 FAnimNode_CustomForward::FAnimNode_CustomForward()
@@ -17,9 +16,9 @@ void FAnimNode_CustomForward::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 {	
 	if (BoneRotations.Names.Num() != BoneRotations.Rotations.Num())
 		return;
-	
+
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
-	const FBoneContainer& BoneContainerUnModified = ForwardedPose.GetPose().GetBoneContainer();
+	//const FBoneContainer& BoneContainerUnModified =  ForwardedPose.GetPose().GetBoneContainer();
 
 	//MAp to store applied rotations that we don't want to be applied to child bones
 	TMap<int32, FQuat> appliedRotaions;

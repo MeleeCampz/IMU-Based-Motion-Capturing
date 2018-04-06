@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
-
 #include "CoreMinimal.h"
 #include "AnimGraphNode_SkeletalControlBase.h"
 #include "AnimNode_CustomForward.h"
@@ -11,7 +10,7 @@
  * 
  */
 UCLASS()
-class FPS_IK_API UAnimGraphNode_CustomForward : public UAnimGraphNode_SkeletalControlBase
+class FPS_IKEDITOR_API UAnimGraphNode_CustomForward : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_BODY()
 	

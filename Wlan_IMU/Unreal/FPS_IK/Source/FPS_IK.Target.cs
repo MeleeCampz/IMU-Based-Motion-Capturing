@@ -8,6 +8,10 @@ public class FPS_IKTarget : TargetRules
 	public FPS_IKTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		ExtraModuleNames.Add("FPS_IK");
+		ExtraModuleNames.AddRange(
+			new string[]
+			{
+				"FPS_IK",
+			});
 	}
 }

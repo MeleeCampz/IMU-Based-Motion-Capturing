@@ -4,15 +4,19 @@
 	"Category": "",
 	"Description": "",
 	"Modules": [
-		{
-			"Name": "FPS_IK",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"CoreUObject",
-				"Engine",
-				"AnimGraph"
-			]
-		}
+    {
+      "Name": "FPS_IK",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "AdditionalDependencies": [
+        "CoreUObject",
+        "Engine"
+      ]
+    },
+    {
+      "Name": "FPS_IKEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
 	]
 }
