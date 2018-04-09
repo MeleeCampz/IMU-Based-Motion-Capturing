@@ -24,12 +24,16 @@ struct FBoneAnimationStructure
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FQuat TPoseOffset;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool isEnabled;
+
 	FBoneAnimationStructure()
 	{
 		ID = -1;
 		BoneName = "None";
 		CurrentRotation = FQuat::Identity;
 		TPoseOffset = FQuat::Identity;
+		isEnabled = false;
 	}
 };
 

@@ -16,7 +16,7 @@
     {
       "Name": "FPS_IKEditor",
       "Type": "Editor",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PostDefault"
     }
 	]
 }
