@@ -286,10 +286,10 @@ void MPU9250::init()
 	// be higher than 1 / 0.0059 = 170 Hz
 	// DLPF_CFG = bits 2:0 = 011; this limits the sample rate to 1000 Hz for both
 	// With the MPU9250, it is possible to get gyro sample rates of 32 kHz (!), 8 kHz, or 1 kHz
-	writeByte(MPU9250_ADDRESS, CONFIG, 0x2);
+	writeByte(MPU9250_ADDRESS, CONFIG, 0x2); // <--- 1 kHZ
 
 	// Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
-	writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x0);  // Use a 200 Hz rate; a rate consistent with the filter update rate 
+	writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x0);  // Use a 1 kHz  a rate consistent with the filter update rate 
 									  // determined inset in CONFIG above
 
    // Set gyroscope full scale range
