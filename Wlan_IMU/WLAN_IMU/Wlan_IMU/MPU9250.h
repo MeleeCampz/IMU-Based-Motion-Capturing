@@ -12,12 +12,12 @@
 #include <Wire.h>
 #include "IMUResult.h"
 
-// See also MPU-9250 Register Map and Descriptions, Revision 4.0,
-// RM-MPU-9250A-00, Rev. 1.4, 9/9/2013 for registers not listed in above
-// document; the MPU9250 and MPU9150 are virtually identical but the latter has
-// a different register map
+ // See also MPU-9250 Register Map and Descriptions, Revision 4.0,
+ // RM-MPU-9250A-00, Rev. 1.4, 9/9/2013 for registers not listed in above
+ // document; the MPU9250 and MPU9150 are virtually identical but the latter has
+ // a different register map
 
-//Magnetometer Registers
+ //Magnetometer Registers
 #define AK8963_ADDRESS   0x0C
 #define WHO_AM_I_AK8963  0x00 // should return 0x48
 #define INFO             0x01
@@ -180,25 +180,25 @@
 
 class MPU9250
 {
-  protected:
+protected:
 	// Set initial input parameters
 	enum Ascale {
-	  AFS_2G = 0,
-	  AFS_4G,
-	  AFS_8G,
-	  AFS_16G
+		AFS_2G = 0,
+		AFS_4G,
+		AFS_8G,
+		AFS_16G
 	};
 
 	enum Gscale {
-	  GFS_250DPS = 0,
-	  GFS_500DPS,
-	  GFS_1000DPS,
-	  GFS_2000DPS
+		GFS_250DPS = 0,
+		GFS_500DPS,
+		GFS_1000DPS,
+		GFS_2000DPS
 	};
 
 	enum Mscale {
-	  MFS_14BITS = 0, // 0.6 mG per LSB
-	  MFS_16BITS      // 0.15 mG per LSB
+		MFS_14BITS = 0, // 0.6 mG per LSB
+		MFS_16BITS      // 0.15 mG per LSB
 	};
 
 	// Specify sensor full scale
@@ -209,21 +209,21 @@ class MPU9250
 	// 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data read
 	uint8_t Mmode = 0x02;
 
-  public:
+public:
 
 	float temperature;   // Stores the real internal chip temperature in Celsius
 	int16_t tempCount;   // Temperature raw count output
 	// Factory mag calibration and mag bias
-	float magCalibration[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
+	float magCalibration[3] = { 0, 0, 0 }, magBias[3] = { 0, 0, 0 };
 	// Bias corrections for gyro and accelerometer
 	//unscaled
 	int gyroBias[3] = { 0, 0, 0 };
 	//scaled
-	float accelBias[3] = {0, 0, 0};
+	float accelBias[3] = { 0, 0, 0 };
 	float SelfTest[6];
 
-	
-  public:
+
+public:
 	void begin(int sda, int scl, int intPin);
 
 	void readAccelData(IMUResult *);
@@ -240,7 +240,7 @@ class MPU9250
 	void setMagCalibrationManually(float magX, float magY, float magZ);
 	void magCalibrate();
 
-  private:
+private:
 	void initAK8963();
 	// Scale resolutions per LSB for the sensors
 	float getMres();

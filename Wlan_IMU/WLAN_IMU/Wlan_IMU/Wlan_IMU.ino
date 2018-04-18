@@ -29,7 +29,7 @@ NetData::IMUData netData;
 
 //DisplayTest
 DisplayHelper display;
-const bool useDisplay = false;
+#define USE_DISPLAY false;
 
 float samplingRateInMicros = 33 * 1000;
 
@@ -75,7 +75,7 @@ void setupMPU()
 	{
 		Serial.println("Failed to load magnetometer bias");
 	}
-	if (useDisplay)
+	if (USE_DISPLAY)
 	{
 		display.ClearAndDisplay("MPU9250 calibrated!");
 	}
@@ -123,8 +123,9 @@ void setup()
 	Serial.begin(921600);
 	delay(250);
 
-	if (useDisplay)
-		display.BeginDisplay();
+#if USE_DISPLAY
+	display.BeginDisplay();
+#endif
 
 	ConfigManager::Begin();
 	setupMPU();
@@ -221,25 +222,22 @@ void loop()
 		//gyroResult.printResult();
 
 #if TEST_SAMPLRATE
-			float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
-			if (useDisplay)
-			{
-				display.ClearDisplay();
-				display.println("Sampling rate in HZ:");
-				display.println(samplingRate);
-				display.print(" @");
-				display.print(lastDataCount);
-				display.printlnAndDisplay(" Samples");
-			}
-			else
-			{
-				Serial.println("Sampling rate in HZ:");
-				Serial.println(samplingRate);
-				Serial.print(" @");
-				Serial.print(lastDataCount);
-				Serial.println(" Samples");
-			}
-			lastDataCount = 0;
+		float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
+#if USE_DISPLAY
+		display.ClearDisplay();
+		display.println("Sampling rate in HZ:");
+		display.println(samplingRate);
+		display.print(" @");
+		display.print(lastDataCount);
+		display.printlnAndDisplay(" Samples");
+#else
+		Serial.println("Sampling rate in HZ:");
+		Serial.println(samplingRate);
+		Serial.print(" @");
+		Serial.print(lastDataCount);
+		Serial.println(" Samples");
+#endif
+		lastDataCount = 0;
 #endif
 
 		//Generate a netData object that is serialized over the network to the client application
