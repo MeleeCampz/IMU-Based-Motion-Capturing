@@ -29,7 +29,7 @@ NetData::IMUData netData;
 
 //DisplayTest
 DisplayHelper display;
-#define USE_DISPLAY false;
+#define USE_DISPLAY false
 
 float samplingRateInMicros = 33 * 1000;
 
