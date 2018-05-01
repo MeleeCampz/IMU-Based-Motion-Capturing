@@ -127,22 +127,6 @@ void setup()
 	}
 	ConfigManager::End();
 
-	//Serial.println("Gyro Bias:");
-	//Serial.print("X: ");
-	//Serial.print(mpu.gyroBias[0]);
-	//Serial.print("  Y: ");
-	//Serial.print(mpu.gyroBias[1]);
-	//Serial.print("  Z: ");
-	//Serial.println(mpu.gyroBias[2]);
-
-	//Serial.println("Accel Bias:");
-	//Serial.print("X: ");
-	//Serial.print(mpu.accelBias[0]);
-	//Serial.print("  Y: ");
-	//Serial.print(mpu.accelBias[1]);
-	//Serial.print("  Z: ");
-	//Serial.println(mpu.accelBias[2]);
-
 	networkManager.Begin();
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);
 	networkManager.SetCallbackOnNewSampleRate(&SampleRateCallback);
@@ -155,9 +139,6 @@ uint32_t lastSample = 0;
 #if TEST_SAMPLRATE
 uint32_t lastDataCount = 0;
 #endif
-
-char* sendBuffer = new char[12]; //3floats
-float r1, r2, r3;
 
 void loop()
 {
@@ -172,41 +153,18 @@ void loop()
 #if TEST_SAMPLRATE
 		lastDataCount++;
 #endif
-
 		mpu.readAccelData(&accResult);
 		mpu.readGyroData(&gyroResult);
 		mpu.readMagData(&magResult);
 
-		//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+		//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);		
 		MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
 		IntegrateVelocity(&accResult, delta);
 	}
 
 	if (micros() - lastSample > samplingRateInMicros)
 	{
-		lastSample = micros();
-
-		//readOrientation(&orientResult, declination);
 		readVelocity(&velResult);
-
-		//float x, y, z;
-		//x = accResult.getXComponent();
-		//y = accResult.getYComponent();
-		//z = accResult.getZComponent();
-
-		//float length = sqrt(x*x + y*y + z*z);
-
-		//Serial.print("X: ");
-		//Serial.print(x);
-		//Serial.print("Y: ");
-		//Serial.print(y);
-		//Serial.print("Z: ");
-		//Serial.println(z);
-		//Serial.print("Len: ");
-		//Serial.println(length);
-
-		//orientResult.printResult();
-		//gyroResult.printResult();
 
 		//Generate a netData object that is serialized over the network to the client application
 		netData.timeStampt = lastSample;
