@@ -7,7 +7,6 @@
 //Manager classes
 #include "NetworkManager.h"
 #include "ConfigManager.h"
-#include "DisplayHelper.h"
 #include "OTAHelper.h"
 
 //IMU
@@ -20,16 +19,12 @@
 //Using default pin D1 for SDA
 const int m_intPin = D3;
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
-#define TEST_SAMPLRATE false
+#define TEST_SAMPLRATE true
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, velResult;
 NetworkManager networkManager;
 NetData::IMUData netData;
-
-//DisplayTest
-DisplayHelper display;
-#define USE_DISPLAY false
 
 float samplingRateInMicros = 33 * 1000;
 
@@ -75,10 +70,6 @@ void setupMPU()
 	{
 		Serial.println("Failed to load magnetometer bias");
 	}
-	if (USE_DISPLAY)
-	{
-		display.ClearAndDisplay("MPU9250 calibrated!");
-	}
 }
 
 void SensorCalibCallback()
@@ -122,10 +113,6 @@ void setup()
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(921600);
 	delay(250);
-
-#if USE_DISPLAY
-	display.BeginDisplay();
-#endif
 
 	ConfigManager::Begin();
 	setupMPU();
@@ -221,25 +208,6 @@ void loop()
 		//orientResult.printResult();
 		//gyroResult.printResult();
 
-#if TEST_SAMPLRATE
-		float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
-#if USE_DISPLAY
-		display.ClearDisplay();
-		display.println("Sampling rate in HZ:");
-		display.println(samplingRate);
-		display.print(" @");
-		display.print(lastDataCount);
-		display.printlnAndDisplay(" Samples");
-#else
-		Serial.println("Sampling rate in HZ:");
-		Serial.println(samplingRate);
-		Serial.print(" @");
-		Serial.print(lastDataCount);
-		Serial.println(" Samples");
-#endif
-		lastDataCount = 0;
-#endif
-
 		//Generate a netData object that is serialized over the network to the client application
 		netData.timeStampt = lastSample;
 
@@ -255,5 +223,16 @@ void loop()
 		networkManager.WriteData(netData);
 
 		ResetVelocity();
+
+#if TEST_SAMPLRATE
+		float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
+		Serial.println("Sampling rate in HZ:");
+		Serial.println(samplingRate);
+		Serial.print(" @");
+		Serial.print(lastDataCount);
+		Serial.println(" Samples");
+
+		lastDataCount = 0;
+#endif
 	}
 }
