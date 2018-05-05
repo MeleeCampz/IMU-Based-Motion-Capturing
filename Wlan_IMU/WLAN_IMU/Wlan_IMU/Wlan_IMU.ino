@@ -181,6 +181,7 @@ void loop()
 		networkManager.WriteData(netData);
 
 		ResetVelocity();
+		lastSample = micros();
 
 #if TEST_SAMPLRATE
 		float samplingRate = 1000000.0f / (samplingRateInMicros / lastDataCount);
