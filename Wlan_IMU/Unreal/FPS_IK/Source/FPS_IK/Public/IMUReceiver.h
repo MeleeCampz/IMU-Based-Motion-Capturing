@@ -12,7 +12,14 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnClientUpdate);
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UENUM(BlueprintType)
+enum class EIMUSaveForamt : uint8
+{
+	Bianry	UMETA(DisplayName = "Binary"),
+	CSV		UMETA(DisplayName = "CSV")
+};
+
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FPS_IK_API UIMUReceiver : public UActorComponent
 {
 	GENERATED_BODY()
@@ -22,7 +29,7 @@ private:
 		FString adr;
 		int32 ID;
 		int32 rate;
-		
+
 		IMUClient(FString address, int32 id, int32 smplrate)
 			: adr(address), ID(id), rate(smplrate)
 		{}
@@ -30,6 +37,7 @@ private:
 		IMUClient()
 			:adr("INVALID"), ID(-1), rate(-1)
 		{}
+		bool StopDataCapture(FString dataPath, EIMUSaveForamt format);
 	};
 
 	struct IMUNetData
@@ -44,7 +52,7 @@ private:
 	FUdpSocketReceiver* _DataReceiver = nullptr;
 	int32 _DataReceiveBufferSize = sizeof(IMUNetData); //in bytes
 	static const int32 DATA_PORT = 6676;
-	
+
 	FSocket* _BroadcastSocket;
 	FUdpSocketReceiver* _BroadcastReceiver = nullptr;
 	int32 _BroadcastReceiveBufferSize = 48; //in bytes
@@ -68,7 +76,7 @@ private:
 
 	void SendNetString(FString ipAddress, FString message);
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UIMUReceiver();
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -87,7 +95,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void InitOTAFirmwareUpdate(FString ipAddress);
-	
+
 	UFUNCTION(BlueprintCallable)
 		void SendSamplingRateToAllClients(int SamplingRateInMicroSeconds);
 
@@ -101,7 +109,7 @@ public:
 		void StartDataCapture();
 
 	UFUNCTION(BlueprintCallable)
-		bool StopDataCapture(FString FilePath);
+		bool StopDataCapture(FString FilePath, EIMUSaveForamt format);
 
 	UFUNCTION(BlueprintCallable)
 		void Load(FString FilePath);
@@ -110,7 +118,7 @@ public:
 		bool GetRotation(int ID, FQuat& out);
 
 	UFUNCTION(BlueprintCallable)
-	FRotator QuatToRot(FQuat in)
+		FRotator QuatToRot(FQuat in)
 	{
 		return FRotator(in);
 	}
@@ -120,7 +128,7 @@ public:
 
 protected:
 	// Called when the game starts
-	virtual void BeginPlay() override;	
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	template <typename T>

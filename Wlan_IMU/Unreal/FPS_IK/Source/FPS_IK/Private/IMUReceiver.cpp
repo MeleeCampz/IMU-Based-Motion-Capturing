@@ -210,16 +210,23 @@ uint32_t UIMUReceiver::unpack_uint32(const uint8_t * buffer)
 }
 
 void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
-{
+{		
 	int32 dataSize = ArrayReaderPtr->Num();
 	int32 bytesSent;
-	//Send data right back
-	_BroadcastSocket->SendTo(ArrayReaderPtr->GetData(), dataSize, bytesSent, EndPt.ToInternetAddr().Get());
 
 	char stringData[1024];
 	memcpy(stringData, ArrayReaderPtr->GetData(), dataSize);
 	stringData[dataSize < 1024 ? dataSize : 1023] = 0; //Null terminator 
 	FString message = ANSI_TO_TCHAR(stringData);
+
+	//Ignore broadcasts that are not sent by esps
+	if (!message.StartsWith("ESP"))
+	{
+		return;
+	}
+
+	//Send data right back so esp knows host pc address
+	_BroadcastSocket->SendTo(ArrayReaderPtr->GetData(), dataSize, bytesSent, EndPt.ToInternetAddr().Get());
 
 	if (GEngine)
 	{
@@ -316,19 +323,57 @@ void UIMUReceiver::GetClientInfo(TArray<FString>& names, TArray<int32>& ids, TAr
 
 void UIMUReceiver::StartDataCapture()
 {
-	_writeArchive.FlushCache();
 	_writeArchive.Empty();
+	_writeArchive.FlushCache();
+	_writeArchive.Seek(0);
 	_bCapture = true;
 }
 
-bool UIMUReceiver::StopDataCapture(FString dataPath)
+bool UIMUReceiver::StopDataCapture(FString dataPath, EIMUSaveForamt format)
 {
 	_bCapture = false;
 
-	if (FFileHelper::SaveArrayToFile(_writeArchive, *dataPath))
+	bool success = false;
+	switch (format)
 	{
-		_writeArchive.FlushCache();
+	case EIMUSaveForamt::Bianry:
+		success = FFileHelper::SaveArrayToFile(_writeArchive, *dataPath);
+		break;
+	case EIMUSaveForamt::CSV:	
+		//Convert binary to string array
+		FMemoryReader reader = FMemoryReader(_writeArchive, true);
+		reader.Seek(0);
+		
+		TArray<FString> asString;
+		FString header = "ID,RotX,RotY,RotZ,VelX,VelY,VelZ,Timestamp";
+		asString.Add(header);
+		while (reader.Tell() < reader.TotalSize())
+		{
+			IMUNetData packet;
+			SaveLoadPacket(reader, packet);
+			FQuat rot(-packet.rotation[1], packet.rotation[2], -packet.rotation[3], packet.rotation[0]);
+			FRotator rotator = rot.Rotator();
+			FVector asVector = rotator.Euler();
+			FString line = FString::Printf(TEXT("%d,%f,%f,%f,%f,%f,%f,%d"),
+				packet.ID,
+				asVector.X,
+				asVector.Y,
+				asVector.Z,
+				packet.velocity[0],
+				packet.velocity[1],
+				packet.velocity[2],
+				packet.timeStamp
+				);
+			asString.Add(line);
+		}
+		success = FFileHelper::SaveStringArrayToFile(asString, *dataPath, FFileHelper::EEncodingOptions::ForceUTF8);
+		break;
+	}
+	if(success)
+	{
 		_writeArchive.Empty();
+		_writeArchive.FlushCache();
+		_writeArchive.Seek(0);
 		if (GEngine)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("File saved! - Data cleard"));
 		return true;
@@ -370,6 +415,7 @@ bool UIMUReceiver::GetRotation(int ID, FQuat& out)
 		return false;
 	}
 
+	//Covert left hand site to right hand side roation... or the other way around... it works somehow^^
 	FQuat rot(-data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
 	//FQuat rot(data->rotation[3], data->rotation[2], -data->rotation[1], data->rotation[0]);
 	out = rot;
