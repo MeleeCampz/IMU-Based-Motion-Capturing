@@ -1,20 +1,29 @@
 #pragma once
-#include <ArduinoOTA.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 
 class OTAHelper
 {
 public:
-	OTAHelper();
-	~OTAHelper();
+	static void StartOTA(String fwURL)
+	{
+		Serial.println("Preparing to update.");
 
-	void StartOTA();
+		t_httpUpdate_return ret = ESPhttpUpdate.update(fwURL);
+		switch (ret)
+		{
+		case HTTP_UPDATE_FAILED:
+			Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s \l", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+			break;
 
-private:
-	bool _inProgress;
-	
-	void OnStart();
-	void OnEnd();
-	void OnProgress(unsigned int progress, unsigned int total);
-	void OnError(ota_error_t error);
+		case HTTP_UPDATE_NO_UPDATES:
+			Serial.println("HTTP_UPDATE_NO_UPDATES");
+			break;
+
+		case HTTP_UPDATE_OK:
+			Serial.println("UPDATE SUCCESS!");
+			break;
+		}
+	}
 };
 

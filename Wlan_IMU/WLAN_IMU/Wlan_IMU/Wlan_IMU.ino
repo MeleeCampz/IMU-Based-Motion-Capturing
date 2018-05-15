@@ -14,12 +14,17 @@
 #include "QuaternionFilters.h"
 #include "IMUResult.h"
 
+//Version
+static const int FW_VERSION = 5;
+//Server for OTA Update
+const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
+
 //Pin Defines
 //Using default pin D2 for SDA
 //Using default pin D1 for SDA
 const int m_intPin = D3;
 #define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
-#define TEST_SAMPLRATE true
+#define TEST_SAMPLRATE false
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, velResult;
@@ -95,8 +100,7 @@ void MagCalibCallback()
 
 void OTAUpdate()
 {
-	OTAHelper helper;
-	helper.StartOTA();
+	OTAHelper::StartOTA(fwUrl);
 }
 
 void SampleRateCallback(int32_t newRate)
@@ -126,6 +130,9 @@ void setup()
 		ConfigManager::SaveSamplingRate(samplingRateInMicros);
 	}
 	ConfigManager::End();
+
+	Serial.print("Current FW Verison: ");
+	Serial.println(FW_VERSION);
 
 	networkManager.Begin();
 	networkManager.SetCallbackOnMagCalibration(&MagCalibCallback);

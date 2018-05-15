@@ -34,10 +34,10 @@ static float GyroMeasDrift = PI * (0.0f / 180.0f);
 // the faster the solution converges, usually at the expense of accuracy.
 // In any case, this is the free parameter in the Madgwick filtering and
 // fusion scheme.
-static float beta = sqrt(3.0f / 4.0f) * GyroMeasError;   // Compute beta
+static float beta = 0.1f; //0.041f; //sqrt(3.0f / 4.0f) * GyroMeasError;   // Compute beta
 // Compute zeta, the other free parameter in the Madgwick scheme usually
 // set to a small or zero value
-static float zeta = sqrt(3.0f / 4.0f) * GyroMeasDrift;
+//static float zeta = 0.015; //sqrt(3.0f / 4.0f) * GyroMeasDrift;
 
 // Vector to hold integral error for Mahony method
 static float eInt[3] = { 0.0f, 0.0f, 0.0f };
