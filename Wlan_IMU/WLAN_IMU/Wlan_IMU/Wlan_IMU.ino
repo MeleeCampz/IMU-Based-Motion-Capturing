@@ -15,7 +15,7 @@
 #include "IMUResult.h"
 
 //Version
-static const int FW_VERSION = 5;
+static const int FW_VERSION = 12;
 //Server for OTA Update
 const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
 
@@ -23,7 +23,6 @@ const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
 //Using default pin D2 for SDA
 //Using default pin D1 for SDA
 const int m_intPin = D3;
-#define declination 3.3f  //http://www.ngdc.noaa.gov/geomag-web/#declination . This is the declinarion in the easterly direction in degrees.  
 #define TEST_SAMPLRATE false
 
 MPU9250 mpu;
@@ -166,6 +165,7 @@ void loop()
 
 		//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);		
 		MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+		//FilterUpdate(&accResult, &gyroResult, &magResult, delta);
 		IntegrateVelocity(&accResult, delta);
 	}
 

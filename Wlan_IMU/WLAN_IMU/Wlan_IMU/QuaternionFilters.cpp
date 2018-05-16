@@ -18,32 +18,21 @@
 
 #define GRAV 9.81f
 
-static float GyroMeasError = PI * (40.0f / 180.0f);
-// gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
-static float GyroMeasDrift = PI * (0.0f / 180.0f);
-// There is a tradeoff in the beta parameter between accuracy and response
-// speed. In the original Madgwick study, beta of 0.041 (corresponding to
-// GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy.
-// However, with this value, the LSM9SD0 response time is about 10 seconds
-// to a stable initial quaternion. Subsequent changes also require a
-// longish lag time to a stable output, not fast enough for a quadcopter or
-// robot car! By increasing beta (GyroMeasError) by about a factor of
-// fifteen, the response time constant is reduced to ~2 sec. I haven't
-// noticed any reduction in solution accuracy. This is essentially the I
-// coefficient in a PID control sense; the bigger the feedback coefficient,
-// the faster the solution converges, usually at the expense of accuracy.
-// In any case, this is the free parameter in the Madgwick filtering and
-// fusion scheme.
-static float beta = 0.1f; //0.041f; //sqrt(3.0f / 4.0f) * GyroMeasError;   // Compute beta
-// Compute zeta, the other free parameter in the Madgwick scheme usually
-// set to a small or zero value
-//static float zeta = 0.015; //sqrt(3.0f / 4.0f) * GyroMeasDrift;
+// System constants
+#define gyroMeasError PI * (6.5f / 180.0f) // gyroscope measurement error in rad/s (shown as 5 deg/s)
+#define gyroMeasDrift PI * (0.2f / 180.0f) // gyroscope measurement error in rad/s/s (shown as 0.2f deg/s/s)
+#define beta sqrt(3.0f / 4.0f) * gyroMeasError // compute beta
+#define zeta sqrt(3.0f / 4.0f) * gyroMeasDrift // compute zeta
 
 // Vector to hold integral error for Mahony method
 static float eInt[3] = { 0.0f, 0.0f, 0.0f };
 // Vector to hold quaternion
 static float q[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-// Vector to hold displacement
+//reference direction of flux in earth frame
+float b_x = 1, b_z = 0; // 
+//estimate gyroscope biases error
+float g_bx = 0, g_by = 0, g_bz = 0;
+// Vector to hold velocity
 static float velocity[3] = { 0.f,0.f,0.f };
 
 void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, float deltat)
@@ -74,6 +63,22 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	float s1, s2, s3, s4;
 	float qDot1, qDot2, qDot3, qDot4;
 
+	// Normalise accelerometer measurement
+	norm = sqrt(ax * ax + ay * ay + az * az);
+	if (norm == 0.0f) return; // handle NaN
+	norm = 1.0f / norm;
+	ax *= norm;
+	ay *= norm;
+	az *= norm;
+
+	// Normalise magnetometer measurement
+	norm = sqrt(mx * mx + my * my + mz * mz);
+	if (norm == 0.0f) return; // handle NaN
+	norm = 1.0f / norm;
+	mx *= norm;
+	my *= norm;
+	mz *= norm;
+
 	// Auxiliary variables to avoid repeated arithmetic
 	float _2q1mx;
 	float _2q1my;
@@ -98,21 +103,6 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	float q3q4 = q3 * q4;
 	float q4q4 = q4 * q4;
 
-	// Normalise accelerometer measurement
-	norm = sqrt(ax * ax + ay * ay + az * az);
-	if (norm == 0.0f) return; // handle NaN
-	norm = 1.0f / norm;
-	ax *= norm;
-	ay *= norm;
-	az *= norm;
-
-	// Normalise magnetometer measurement
-	norm = sqrt(mx * mx + my * my + mz * mz);
-	if (norm == 0.0f) return; // handle NaN
-	norm = 1.0f / norm;
-	mx *= norm;
-	my *= norm;
-	mz *= norm;
 
 	// Reference direction of Earth's magnetic field
 	_2q1mx = 2.0f * q1 * mx;
@@ -131,8 +121,8 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	s1 = -_2q3 * (2.0f * q2q4 - _2q1q3 - ax) + _2q2 * (2.0f * q1q2 + _2q3q4 - ay) - _2bz * q3 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q4 + _2bz * q2) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q3 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
 	s2 = _2q4 * (2.0f * q2q4 - _2q1q3 - ax) + _2q1 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q2 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + _2bz * q4 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q3 + _2bz * q1) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q4 - _4bz * q2) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
 	s3 = -_2q1 * (2.0f * q2q4 - _2q1q3 - ax) + _2q4 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q3 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + (-_4bx * q3 - _2bz * q1) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q2 + _2bz * q4) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q1 - _4bz * q3) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
-	s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay) + (-_4bx * q4 + _2bz * q2) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q1 + _2bz * q3) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q2 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
-	norm = sqrt(s1 * s1 + s2 * s2 + s3 * s3 + s4 * s4);    // normalise step magnitude
+	s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay) + (-_4bx * q4 + _2bz * q2) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q1 + _2bz * q3) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q2 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);	
+	norm = sqrt(s1 * s1 + s2 * s2 + s3 * s3 + s4 * s4);   // normalise step magnitude
 	norm = 1.0f / norm;
 	s1 *= norm;
 	s2 *= norm;
@@ -274,32 +264,6 @@ void MahonyQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, 
 
 const float * getQ() { return q; }
 
-
-// Declination of SparkFun Electronics (40°05'26.6"N 105°11'05.9"W) is
-//   8° 30' E  ± 0° 21' (or 8.5°) on 2016-07-19
-// - http://www.ngdc.noaa.gov/geomag-web/#declination
-void readOrientation(IMUResult *orien, float dec)
-{
-
-	float yaw, pitch, roll;
-
-	yaw = atan2(2.0f * (*(getQ() + 1) * *(getQ() + 2) + *getQ() *
-		*(getQ() + 3)), *getQ() * *getQ() + *(getQ() + 1) * *(getQ() + 1)
-		- *(getQ() + 2) * *(getQ() + 2) - *(getQ() + 3) * *(getQ() + 3));
-	pitch = -asin(2.0f * (*(getQ() + 1) * *(getQ() + 3) - *getQ() *
-		*(getQ() + 2)));
-	roll = atan2(2.0f * (*getQ() * *(getQ() + 1) + *(getQ() + 2) *
-		*(getQ() + 3)), *getQ() * *getQ() - *(getQ() + 1) * *(getQ() + 1)
-		- *(getQ() + 2) * *(getQ() + 2) + *(getQ() + 3) * *(getQ() + 3));
-	pitch *= RAD_TO_DEG;
-	yaw *= RAD_TO_DEG;
-
-	yaw -= dec;
-	roll *= RAD_TO_DEG;
-
-	orien->setResult(yaw, pitch, roll);
-}
-
 void IntegrateVelocity(IMUResult* acc, float deltaTime)
 {
 	float res[3];
@@ -327,3 +291,168 @@ void readVelocity(IMUResult * vel)
 }
 
 const float * GetVelocity() { return velocity; }
+
+//Original C-Code from paper with modified input params and magnetometer normalized before using it....
+void FilterUpdate(IMUResult* acc, IMUResult* gyro, IMUResult* mag, float deltat)
+{
+	float res[3];
+
+	gyro->getResult(res);
+	float w_x = PI / 180.0f * res[0];
+	float w_y = PI / 180.0f * res[1];
+	float w_z = PI / 180.0f * res[2];
+
+	acc->getResult(res);
+	float a_x = res[0];
+	float a_y = res[1];
+	float a_z = res[2];
+
+	//Magnetomerter is physically differently alligned than the other sensors
+	mag->getResult(res);
+	float m_x = res[1];
+	float m_y = res[0];
+	float m_z = -res[2];
+
+	float norm; // vector norm
+	// normalise the accelerometer measurement
+	norm = sqrt(a_x * a_x + a_y * a_y + a_z * a_z);
+	if (norm == 0.0f) return; // Handle NaN
+	norm = 1.0f / norm;       // Use reciprocal for division
+	a_x *= norm;
+	a_y *= norm;
+	a_z *= norm;
+
+	// normalise the magnetometer measurement
+	norm = sqrt(m_x * m_x + m_y * m_y + m_z * m_z);
+	if (norm == 0.0f) return; // Handle NaN
+	norm = 1.0f / norm;       // Use reciprocal for division
+	m_x *= norm;
+	m_y *= norm;
+	m_z *= norm;
+
+	// local system variables
+	
+	float SEqDot_omega_1, SEqDot_omega_2, SEqDot_omega_3, SEqDot_omega_4; // quaternion rate from gyroscopes elements
+	float f_1, f_2, f_3, f_4, f_5, f_6; // objective function elements
+	float J_11or24, J_12or23, J_13or22, J_14or21, J_32, J_33, // objective function Jacobian elements
+		J_41, J_42, J_43, J_44, J_51, J_52, J_53, J_54, J_61, J_62, J_63, J_64; //
+	float SEqHatDot_1, SEqHatDot_2, SEqHatDot_3, SEqHatDot_4; // estimated direction of the gyroscope error
+	float w_err_x, w_err_y, w_err_z; // estimated direction of the gyroscope error (angular)
+	float h_x, h_y, h_z; // computed flux in the earth frame
+
+	// axulirary variables to avoid reapeated calcualtions
+	float halfSEq_1 = 0.5f * q[0];
+	float halfSEq_2 = 0.5f * q[1];
+	float halfSEq_3 = 0.5f * q[2];
+	float halfSEq_4 = 0.5f * q[3];
+	float twoSEq_1 = 2.0f * q[0];
+	float twoSEq_2 = 2.0f * q[1];
+	float twoSEq_3 = 2.0f * q[2];
+	float twoSEq_4 = 2.0f * q[3];
+	float twob_x = 2.0f * b_x;
+	float twob_z = 2.0f * b_z;
+	float twob_xSEq_1 = 2.0f * b_x * q[0];
+	float twob_xSEq_2 = 2.0f * b_x * q[1];
+	float twob_xSEq_3 = 2.0f * b_x * q[2];
+	float twob_xSEq_4 = 2.0f * b_x * q[3];
+	float twob_zSEq_1 = 2.0f * b_z * q[0];
+	float twob_zSEq_2 = 2.0f * b_z * q[1];
+	float twob_zSEq_3 = 2.0f * b_z * q[2];
+	float twob_zSEq_4 = 2.0f * b_z * q[3];
+	float SEq_1SEq_2;
+	float SEq_1SEq_3 = q[0] * q[2];
+	float SEq_1SEq_4;
+	float SEq_2SEq_3;
+	float SEq_2SEq_4 = q[1] * q[3];
+	float SEq_3SEq_4;
+	float twom_x = 2.0f * m_x;
+	float twom_y = 2.0f * m_y;
+	float twom_z = 2.0f * m_z;
+
+	// compute the objective function and Jacobian
+	f_1 = twoSEq_2 * q[3] - twoSEq_1 * q[2] - a_x;
+	f_2 = twoSEq_1 * q[1] + twoSEq_3 * q[3] - a_y;
+	f_3 = 1.0f - twoSEq_2 * q[1] - twoSEq_3 * q[2] - a_z;
+	f_4 = twob_x * (0.5f - q[2] * q[2] - q[3] * q[3]) + twob_z * (SEq_2SEq_4 - SEq_1SEq_3) - m_x;
+	f_5 = twob_x * (q[1] * q[2] - q[0] * q[3]) + twob_z * (q[0] * q[1] + q[2] * q[3]) - m_y;
+	f_6 = twob_x * (SEq_1SEq_3 + SEq_2SEq_4) + twob_z * (0.5f - q[1] * q[1] - q[2] * q[2]) - m_z;
+	J_11or24 = twoSEq_3; // J_11 negated in matrix multiplication
+	J_12or23 = 2.0f * q[3];
+	J_13or22 = twoSEq_1; // J_12 negated in matrix multiplication
+	J_14or21 = twoSEq_2;
+	J_32 = 2.0f * J_14or21; // negated in matrix multiplication
+	J_33 = 2.0f * J_11or24; // negated in matrix multiplication
+	J_41 = twob_zSEq_3; // negated in matrix multiplication
+	J_42 = twob_zSEq_4;
+	J_43 = 2.0f * twob_xSEq_3 + twob_zSEq_1; // negated in matrix multiplication
+	J_44 = 2.0f * twob_xSEq_4 - twob_zSEq_2; // negated in matrix multiplication
+	J_51 = twob_xSEq_4 - twob_zSEq_2; // negated in matrix multiplication
+	J_52 = twob_xSEq_3 + twob_zSEq_1;
+	J_53 = twob_xSEq_2 + twob_zSEq_4;
+	J_54 = twob_xSEq_1 - twob_zSEq_3; // negated in matrix multiplication
+	J_61 = twob_xSEq_3;
+	J_62 = twob_xSEq_4 - 2.0f * twob_zSEq_2;
+	J_63 = twob_xSEq_1 - 2.0f * twob_zSEq_3;
+	J_64 = twob_xSEq_2;
+
+	// compute the gradient (matrix multiplication)
+	SEqHatDot_1 = J_14or21 * f_2 - J_11or24 * f_1 - J_41 * f_4 - J_51 * f_5 + J_61 * f_6;
+	SEqHatDot_2 = J_12or23 * f_1 + J_13or22 * f_2 - J_32 * f_3 + J_42 * f_4 + J_52 * f_5 + J_62 * f_6;
+	SEqHatDot_3 = J_12or23 * f_2 - J_33 * f_3 - J_13or22 * f_1 - J_43 * f_4 + J_53 * f_5 + J_63 * f_6;
+	SEqHatDot_4 = J_14or21 * f_1 + J_11or24 * f_2 - J_44 * f_4 - J_54 * f_5 + J_64 * f_6;
+	// normalise the gradient to estimate direction of the gyroscope error
+	norm = sqrt(SEqHatDot_1 * SEqHatDot_1 + SEqHatDot_2 * SEqHatDot_2 + SEqHatDot_3 * SEqHatDot_3 + SEqHatDot_4 * SEqHatDot_4);
+	SEqHatDot_1 = SEqHatDot_1 / norm;
+	SEqHatDot_2 = SEqHatDot_2 / norm;
+	SEqHatDot_3 = SEqHatDot_3 / norm;
+	SEqHatDot_4 = SEqHatDot_4 / norm;
+
+	// compute angular estimated direction of the gyroscope error
+	w_err_x = twoSEq_1 * SEqHatDot_2 - twoSEq_2 * SEqHatDot_1 - twoSEq_3 * SEqHatDot_4 + twoSEq_4 * SEqHatDot_3;
+	w_err_y = twoSEq_1 * SEqHatDot_3 + twoSEq_2 * SEqHatDot_4 - twoSEq_3 * SEqHatDot_1 - twoSEq_4 * SEqHatDot_2;
+	w_err_z = twoSEq_1 * SEqHatDot_4 - twoSEq_2 * SEqHatDot_3 + twoSEq_3 * SEqHatDot_2 - twoSEq_4 * SEqHatDot_1;
+
+	// compute and remove the gyroscope baises
+	g_bx += w_err_x * deltat * zeta;
+	g_by += w_err_y * deltat * zeta;
+	g_bz += w_err_z * deltat * zeta;
+	w_x -= g_bx;
+	w_y -= g_by;
+	w_z -= g_bz;
+
+	// compute the quaternion rate measured by gyroscopes
+	SEqDot_omega_1 = -halfSEq_2 * w_x - halfSEq_3 * w_y - halfSEq_4 * w_z;
+	SEqDot_omega_2 = halfSEq_1 * w_x + halfSEq_3 * w_z - halfSEq_4 * w_y;
+	SEqDot_omega_3 = halfSEq_1 * w_y - halfSEq_2 * w_z + halfSEq_4 * w_x;
+	SEqDot_omega_4 = halfSEq_1 * w_z + halfSEq_2 * w_y - halfSEq_3 * w_x;
+
+
+	// compute then integrate the estimated quaternion rate
+	q[0] += (SEqDot_omega_1 - (beta * SEqHatDot_1)) * deltat;
+	q[1] += (SEqDot_omega_2 - (beta * SEqHatDot_2)) * deltat;
+	q[2] += (SEqDot_omega_3 - (beta * SEqHatDot_3)) * deltat;
+	q[3] += (SEqDot_omega_4 - (beta * SEqHatDot_4)) * deltat;
+
+	// normalise quaternion
+	norm = sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+	q[0] /= norm;
+	q[1] /= norm;
+	q[2] /= norm;
+	q[3] /= norm;
+
+	// compute flux in the earth frame
+	SEq_1SEq_2 = q[0] * q[1]; // recompute axulirary variables
+	SEq_1SEq_3 = q[0] * q[2];
+	SEq_1SEq_4 = q[0] * q[3];
+	SEq_3SEq_4 = q[2] * q[3];
+	SEq_2SEq_3 = q[1] * q[2];
+	SEq_2SEq_4 = q[1] * q[3];
+
+	h_x = twom_x * (0.5f - q[2] * q[2] - q[3] * q[3]) + twom_y * (SEq_2SEq_3 - SEq_1SEq_4) + twom_z * (SEq_2SEq_4 + SEq_1SEq_3);
+	h_y = twom_x * (SEq_2SEq_3 + SEq_1SEq_4) + twom_y * (0.5f - q[1] * q[1] - q[3] * q[3]) + twom_z * (SEq_3SEq_4 - SEq_1SEq_2);
+	h_z = twom_x * (SEq_2SEq_4 - SEq_1SEq_3) + twom_y * (SEq_3SEq_4 + SEq_1SEq_2) + twom_z * (0.5f - q[1] * q[1] - q[2] * q[2]);
+
+	// normalise the flux vector to have only components in the x and z
+	b_x = sqrt((h_x * h_x) + (h_y * h_y));
+	b_z = h_z;
+}

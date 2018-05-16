@@ -39,9 +39,6 @@
     <ClInclude Include="NetworkManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DisplayHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="OTAHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,9 +60,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NetworkManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="OTAHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

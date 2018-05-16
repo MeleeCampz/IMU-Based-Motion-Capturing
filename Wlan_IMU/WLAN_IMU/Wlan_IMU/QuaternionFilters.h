@@ -6,7 +6,7 @@
 
 void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, float deltat);
 void MahonyQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, float deltat);
-void readOrientation(IMUResult *orien, float dec);
+void FilterUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag, float deltat);
 const float * getQ();
 
 void IntegrateVelocity(IMUResult* acc, float deltaTime);
