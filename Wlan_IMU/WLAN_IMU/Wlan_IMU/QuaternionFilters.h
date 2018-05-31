@@ -1,3 +1,5 @@
+//Original source code: https://github.com/sparkfun/MPU-9250_Breakout/tree/master/Libraries/Arduino/src
+
 #ifndef _QUATERNIONFILTERS_H_
 #define _QUATERNIONFILTERS_H_
 

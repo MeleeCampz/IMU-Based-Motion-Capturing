@@ -15,7 +15,7 @@
 #include "IMUResult.h"
 
 //Version
-static const int FW_VERSION = 12;
+static const int FW_VERSION = 13;
 //Server for OTA Update
 const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
 
@@ -115,7 +115,7 @@ void setup()
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	Serial.begin(921600);
-	delay(250);
+	delay(100);
 
 	ConfigManager::Begin();
 	setupMPU();

@@ -1,3 +1,7 @@
+
+//Original source code: https://github.com/sparkfun/MPU-9250_Breakout/tree/master/Libraries/Arduino/src
+//Code was slightly adapted
+
 /*
  Note: The MPU9250 is an I2C sensor and uses the Arduino Wire library.
  Because the sensor is not 5V tolerant, we are using a 3.3 V 8 MHz Pro Mini or

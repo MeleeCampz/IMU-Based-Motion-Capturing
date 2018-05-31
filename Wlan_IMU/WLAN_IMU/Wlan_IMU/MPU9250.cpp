@@ -10,7 +10,7 @@
 void MPU9250::begin(int sda, int scl, int intPin)
 {
 	Wire.begin(sda, scl);
-	Wire.setClock(400000);
+	Wire.setClock(800000L);
 	// Set up the interrupt pin, its set as active high, push-pull
 	pinMode(intPin, INPUT);
 	digitalWrite(intPin, LOW);

@@ -19,8 +19,8 @@
 #define GRAV 9.81f
 
 // System constants
-#define gyroMeasError PI * (6.5f / 180.0f) // gyroscope measurement error in rad/s (shown as 5 deg/s)
-#define gyroMeasDrift PI * (0.2f / 180.0f) // gyroscope measurement error in rad/s/s (shown as 0.2f deg/s/s)
+#define gyroMeasError PI * (40.5f / 180.0f) // gyroscope measurement error in rad/s 
+#define gyroMeasDrift PI * (0.2f / 180.0f) // gyroscope measurement error in rad/s/s 
 #define beta sqrt(3.0f / 4.0f) * gyroMeasError // compute beta
 #define zeta sqrt(3.0f / 4.0f) * gyroMeasDrift // compute zeta
 
@@ -63,22 +63,6 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	float s1, s2, s3, s4;
 	float qDot1, qDot2, qDot3, qDot4;
 
-	// Normalise accelerometer measurement
-	norm = sqrt(ax * ax + ay * ay + az * az);
-	if (norm == 0.0f) return; // handle NaN
-	norm = 1.0f / norm;
-	ax *= norm;
-	ay *= norm;
-	az *= norm;
-
-	// Normalise magnetometer measurement
-	norm = sqrt(mx * mx + my * my + mz * mz);
-	if (norm == 0.0f) return; // handle NaN
-	norm = 1.0f / norm;
-	mx *= norm;
-	my *= norm;
-	mz *= norm;
-
 	// Auxiliary variables to avoid repeated arithmetic
 	float _2q1mx;
 	float _2q1my;
@@ -103,6 +87,21 @@ void MadgwickQuaternionUpdate(IMUResult * acc, IMUResult * gyro, IMUResult * mag
 	float q3q4 = q3 * q4;
 	float q4q4 = q4 * q4;
 
+	// Normalise accelerometer measurement
+	norm = sqrt(ax * ax + ay * ay + az * az);
+	if (norm == 0.0f) return; // handle NaN
+	norm = 1.0f / norm;
+	ax *= norm;
+	ay *= norm;
+	az *= norm;
+
+	// Normalise magnetometer measurement
+	norm = sqrt(mx * mx + my * my + mz * mz);
+	if (norm == 0.0f) return; // handle NaN
+	norm = 1.0f / norm;
+	mx *= norm;
+	my *= norm;
+	mz *= norm;
 
 	// Reference direction of Earth's magnetic field
 	_2q1mx = 2.0f * q1 * mx;
