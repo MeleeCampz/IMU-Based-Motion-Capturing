@@ -19,7 +19,7 @@
 #define GRAV 9.81f
 
 // System constants
-#define gyroMeasError PI * (40.5f / 180.0f) // gyroscope measurement error in rad/s 
+#define gyroMeasError PI * (15.5f / 180.0f) // gyroscope measurement error in rad/s 
 #define gyroMeasDrift PI * (0.2f / 180.0f) // gyroscope measurement error in rad/s/s 
 #define beta sqrt(3.0f / 4.0f) * gyroMeasError // compute beta
 #define zeta sqrt(3.0f / 4.0f) * gyroMeasDrift // compute zeta
@@ -272,9 +272,9 @@ void IntegrateVelocity(IMUResult* acc, float deltaTime)
 	float ay = res[1];
 	float az = res[2];
 
-	velocity[0] += ax * deltaTime;
-	velocity[1] += ay * deltaTime;
-	velocity[2] += az * deltaTime;
+	velocity[0] += ax; //*deltaTime;
+	velocity[1] += ay; //*deltaTime;
+	velocity[2] += az; //*deltaTime;
 }
 
 void ResetVelocity()

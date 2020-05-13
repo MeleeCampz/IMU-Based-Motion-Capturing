@@ -23,7 +23,7 @@ const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
 //Using default pin D2 for SDA
 //Using default pin D1 for SDA
 const int m_intPin = D3;
-#define TEST_SAMPLRATE false
+#define TEST_SAMPLRATE true
 
 MPU9250 mpu;
 IMUResult magResult, accResult, gyroResult, velResult;
@@ -148,27 +148,32 @@ uint32_t lastDataCount = 0;
 
 void loop()
 {
+	//Update delta time
+	float delta = (micros() - lastUpdate) / 1000000.f;
+	lastUpdate = micros();
+
+#if TEST_SAMPLRATE
+	lastDataCount++;
+#endif
+
+	//Update network manager
 	networkManager.Update();
 
 	// If intPin goes high, all data registers have new data
 	// On interrupt, check if data ready interrupt
 	if (mpu.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-	{
-		float delta = (micros() - lastUpdate) / 1000000.f;
-		lastUpdate = micros();
-#if TEST_SAMPLRATE
-		lastDataCount++;
-#endif
+	{		
 		mpu.readAccelData(&accResult);
 		mpu.readGyroData(&gyroResult);
 		mpu.readMagData(&magResult);
-
-		//MahonyQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);		
-		MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
-		//FilterUpdate(&accResult, &gyroResult, &magResult, delta);
-		IntegrateVelocity(&accResult, delta);
 	}
 
+	//Perform update steps even if no new data was read
+	MadgwickQuaternionUpdate(&accResult, &gyroResult, &magResult, delta);
+	IntegrateVelocity(&accResult, delta);
+
+
+	//Check if we should send a new network package, based on adjustable sampling rate
 	if (micros() - lastSample > samplingRateInMicros)
 	{
 		readVelocity(&velResult);
@@ -181,12 +186,14 @@ void loop()
 		netData.rotation[2] = getQ()[2];
 		netData.rotation[3] = getQ()[3];
 
-		netData.velocity[0] = velResult.getXComponent();
-		netData.velocity[1] = velResult.getYComponent();
-		netData.velocity[2] = velResult.getZComponent();
+		netData.velocity[0] = velResult.getXComponent() / lastDataCount;
+		netData.velocity[1] = velResult.getYComponent() / lastDataCount;
+		netData.velocity[2] = velResult.getZComponent() / lastDataCount;
 
+		//Send data
 		networkManager.WriteData(netData);
 
+		//Reset integrated velocity back to 0
 		ResetVelocity();
 		lastSample = micros();
 

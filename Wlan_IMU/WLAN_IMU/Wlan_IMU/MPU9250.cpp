@@ -281,15 +281,17 @@ void MPU9250::init()
 	delay(200);
 
 	// Configure Gyro and Thermometer
-	// Disable FSYNC and set thermometer and gyro bandwidth to 41 and 42 Hz, respectively; 
-	// minimum delay time for this setting is 5.9 ms, which means sensor fusion update rates cannot
-	// be higher than 1 / 0.0059 = 170 Hz
-	// DLPF_CFG = bits 2:0 = 011; this limits the sample rate to 1000 Hz for both
+	// Disable FSYNC and set thermometer and gyro bandwidth to 184 and 188 Hz, respectively; 
+	// minimum delay time for this setting is 2.9 ms, which means sensor fusion update rates cannot
+	// be higher than 1 / 0.0029 = 344 Hz
+	// DLPF_CFG = bits 2:0 = 001; this limits the sample rate to 1000 Hz for both
+
 	// With the MPU9250, it is possible to get gyro sample rates of 32 kHz (!), 8 kHz, or 1 kHz
-	writeByte(MPU9250_ADDRESS, CONFIG, 0x2); // <--- 1 kHZ
+	writeByte(MPU9250_ADDRESS, CONFIG, 0x01); // <--- 1 kHZ
+	// 7 => 3600 bandwidth 8 kHz gyro 4 kHz temp
 
 	// Set sample rate = gyroscope output rate/(1 + SMPLRT_DIV)
-	writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x0);  // Use a 1 kHz  a rate consistent with the filter update rate 
+	writeByte(MPU9250_ADDRESS, SMPLRT_DIV, 0x00);  // Use a 1 kHz  a rate consistent with the filter update rate 
 									  // determined inset in CONFIG above
 
    // Set gyroscope full scale range
@@ -299,7 +301,7 @@ void MPU9250::init()
 	c = c & ~0x02; // Clear Fchoice bits [1:0] 
 	c = c & ~0x18; // Clear AFS bits [4:3]
 	c = c | Gscale << 3; // Set full scale range for the gyro
-   // c =| 0x00; // Set Fchoice for the gyro to 11 by writing its inverse to bits 1:0 of GYRO_CONFIG
+    //c =| 0x00; // Set Fchoice for the gyro to 11 by writing its inverse to bits 1:0 of GYRO_CONFIG
 	writeByte(MPU9250_ADDRESS, GYRO_CONFIG, c); // Write new GYRO_CONFIG value to register
 
    // Set accelerometer full-scale range configuration
@@ -314,7 +316,7 @@ void MPU9250::init()
    // accel_fchoice_b bit [3]; in this case the bandwidth is 1.13 kHz
 	c = readByte(MPU9250_ADDRESS, ACCEL_CONFIG2); // get current ACCEL_CONFIG2 register value
 	c = c & ~0x0F; // Clear accel_fchoice_b (bit 3) and A_DLPFG (bits [2:0])  
-	c = c | 0x03;  // Set accelerometer rate to 1 kHz and bandwidth to 41 Hz
+	c = c | 0x02;  // Set accelerometer rate to 1 kHz and bandwidth to 99 Hz
 	writeByte(MPU9250_ADDRESS, ACCEL_CONFIG2, c); // Write new ACCEL_CONFIG2 register value
    // The accelerometer, gyro, and thermometer are set to 1 kHz sample rates, 
    
