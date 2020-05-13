@@ -59,7 +59,7 @@ void AIMUCharacter::ApplyTPoseConfiguration()
 		if (!_imuReceiver->GetRotation(bone.ID, curRotation))
 		{
 			GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-			return;
+			continue;
 		}		
 
 		worldBoneRotation = GetMesh()->GetBoneQuaternion(bone.BoneName, EBoneSpaces::WorldSpace);

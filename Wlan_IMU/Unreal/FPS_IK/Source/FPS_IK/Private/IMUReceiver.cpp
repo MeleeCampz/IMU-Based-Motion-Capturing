@@ -181,34 +181,6 @@ void UIMUReceiver::SendNetString(FString ipAddress, FString message)
 	}
 }
 
-float UIMUReceiver::unpack_float(const uint8_t *buffer)
-{
-	float f;
-	uint8_t b[] = { buffer[3], buffer[2], buffer[1], buffer[0] };
-	memcpy(&f, &b, sizeof(f));
-
-	//ESP8266 is little endian, so swap byte order!
-	return swap_endian(f);
-}
-
-int16_t UIMUReceiver::unpack_int16(const uint8_t * buffer)
-{
-	int16_t ret;
-	uint8_t b[] = { buffer[1], buffer[0] };
-	memcpy(&ret, &b, sizeof(int16_t));
-
-	return swap_endian(ret);
-}
-
-uint32_t UIMUReceiver::unpack_uint32(const uint8_t * buffer)
-{
-	uint32_t ret;
-	uint8_t b[] = { buffer[3], buffer[2], buffer[1], buffer[0] };
-	memcpy(&ret, &b, sizeof(uint32_t));
-
-	return swap_endian(ret);
-}
-
 void UIMUReceiver::RecvBroadcast(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {		
 	int32 dataSize = ArrayReaderPtr->Num();
@@ -257,20 +229,7 @@ void UIMUReceiver::RecvData(const FArrayReaderPtr & ArrayReaderPtr, const FIPv4E
 	if (dataSize == sizeof(IMUNetData))
 	{
 		IMUNetData packet;
-
-		packet.timeStamp = unpack_uint32(&ArrayReaderPtr->GetData()[0]);
-
-		packet.rotation[0] = unpack_float(&ArrayReaderPtr->GetData()[4]);
-		packet.rotation[1] = unpack_float(&ArrayReaderPtr->GetData()[8]);
-		packet.rotation[2] = unpack_float(&ArrayReaderPtr->GetData()[12]);
-		packet.rotation[3] = unpack_float(&ArrayReaderPtr->GetData()[16]);
-
-		packet.velocity[0] = unpack_float(&ArrayReaderPtr->GetData()[20]);
-		packet.velocity[1] = unpack_float(&ArrayReaderPtr->GetData()[24]);
-		packet.velocity[2] = unpack_float(&ArrayReaderPtr->GetData()[28]);
-
-		packet.ID = unpack_int16(&ArrayReaderPtr->GetData()[32]);
-
+		memcpy(&packet, ArrayReaderPtr->GetData(), sizeof(IMUNetData));
 		_receivedPacketsQueue.Enqueue(packet);
 	}
 }
@@ -351,7 +310,7 @@ bool UIMUReceiver::StopDataCapture(FString dataPath, EIMUSaveForamt format)
 		{
 			IMUNetData packet;
 			SaveLoadPacket(reader, packet);
-			FQuat rot(-packet.rotation[1], packet.rotation[2], -packet.rotation[3], packet.rotation[0]);
+			FQuat rot(-packet.rotation[1], packet.rotation[2], -packet.rotation[3], packet.rotation[0]); //why did I do this?
 			FRotator rotator = rot.Rotator();
 			FVector asVector = rotator.Euler();
 			FString line = FString::Printf(TEXT("%d,%f,%f,%f,%f,%f,%f,%d"),
@@ -419,6 +378,19 @@ bool UIMUReceiver::GetRotation(int ID, FQuat& out)
 	FQuat rot(-data->rotation[1], data->rotation[2], -data->rotation[3], data->rotation[0]);
 	//FQuat rot(data->rotation[3], data->rotation[2], -data->rotation[1], data->rotation[0]);
 	out = rot;
+
+	return true;
+}
+
+bool UIMUReceiver::GetVelocity(int ID, FVector& out)
+{
+	IMUNetData* data = _IMUData.Find(ID);
+	if (!data)
+	{
+		return false;
+	}
+
+	out = FVector(data->velocity[0], data->velocity[1], data->velocity[2]);
 
 	return true;
 }

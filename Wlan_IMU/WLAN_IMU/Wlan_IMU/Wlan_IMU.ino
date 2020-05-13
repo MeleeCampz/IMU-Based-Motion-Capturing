@@ -15,7 +15,7 @@
 #include "IMUResult.h"
 
 //Version
-static const int FW_VERSION = 13;
+static const int FW_VERSION = 14;
 //Server for OTA Update
 const char* fwUrl = "http://meleecampz.ddns.net/OTAUpdate/Wlan_IMU.bin";
 
